@@ -21,7 +21,6 @@ import zipfile
 from requests.exceptions import RequestException
 from zipfile import BadZipFile
 
-from bleurt.score import BleurtScorer
 from typing import List
 
 from uqlm.black_box.baseclass.similarity_scorer import SimilarityScorer
@@ -31,7 +30,9 @@ class BLEURTScorer(SimilarityScorer):
     def __init__(self) -> None:
         """
         Class for computing BLEURT Scores between original responses and candidates. For more on
-        BLEURT, refer to Sellam et al.(2020) :footcite:`sellam2020bleurtlearningrobustmetrics`.
+        BLEURT, refer to Sellam et al.(2020) :footcite:`sellam2020bleurtlearningrobustmetrics`. Requires
+        installation of `bleurt` package. Install using:
+        `pip install pip install --user git+https://github.com/google-research/bleurt.git`
 
         Raises
         ------
@@ -39,8 +40,17 @@ class BLEURTScorer(SimilarityScorer):
             If there's an error downloading or initializing the BLEURT checkpoint
         """
         try:
+            from bleurt.score import BleurtScorer
+        except ImportError:    
+            raise ImportError(
+            """
+            The bleurt package is required to use BLEURTScorer but is not installed. Please install it using:\n
+            `pip install pip install --user git+https://github.com/google-research/bleurt.git`
+            """
+            )
+        try:
             checkpoint = self._set_bleurt_checkpoint()
-            self.bleurtr = BleurtScorer(checkpoint)
+            self.bleurt_scorer = BleurtScorer(checkpoint)
         except Exception as e:
             raise RuntimeError(
                 f"Failed to initialize BLEURT scorer. Error: {str(e)}"
@@ -74,13 +84,13 @@ class BLEURTScorer(SimilarityScorer):
         """Compute BLEURT scores between a response and candidate responses"""
         duplicated_response = [response] * len(candidates)
         return np.mean(
-            self.bleurtr.score(
+            self.bleurt_scorer.score(
                 references=duplicated_response, candidates=candidates
             )
         )
 
     def _set_bleurt_checkpoint(self):
-        """Sets up checkpoint"""
+        """Sets up checkpoint"""        
         resource_path = resources.files("uqlm.resources").joinpath("BLEURT-20")
         if not resource_path.is_dir():
             self._download_and_unzip(

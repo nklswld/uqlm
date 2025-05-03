@@ -13,8 +13,10 @@
 # limitations under the License.
 
 import json
+import os
 import numpy as np
 from uqlm.black_box import BertScorer, BLEURTScorer, CosineScorer, MatchScorer
+import unittest
 
 datafile_path = "tests/data/similarity/similarity_results_file.json"
 with open(datafile_path, "r") as f:
@@ -36,7 +38,10 @@ def test_bert():
         ]
     )
 
-
+@unittest.skipIf(
+    (os.getenv("CI") == "true"),
+    "Skipping test in CI due to dependency on GitHub repository.",
+)
 def test_bluert():
     bluert = BLEURTScorer()
     bluert_result = bluert.evaluate(

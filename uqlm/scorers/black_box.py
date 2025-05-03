@@ -17,7 +17,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from typing import Any, List, Optional
 
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
-from uqlm.black_box import BertScorer, BLEURTScorer, CosineScorer, MatchScorer
+from uqlm.black_box import BertScorer, CosineScorer, MatchScorer
 
 
 class BlackBoxUQ(UncertaintyQuantifier):
@@ -50,7 +50,7 @@ class BlackBoxUQ(UncertaintyQuantifier):
             'semantic_negentropy', 'noncontradiction', 'exact_match', 'bert_score', 'bleurt', 'cosine_sim'
         }, default=None
             Specifies which black box (consistency) scorers to include. If None, defaults to
-            ["semantic_negentropy", "noncontradiction", "exact_match", "cosine_sim"]
+            ["semantic_negentropy", "noncontradiction", "exact_match", "cosine_sim"]. 
             
         device: str or torch.device input or torch.device object, default="cpu"
             Specifies the device that NLI model use for prediction. Only applies to 'semantic_negentropy', 'noncontradiction' 
@@ -235,6 +235,7 @@ class BlackBoxUQ(UncertaintyQuantifier):
             elif scorer == "bert_score":
                 self.scorer_objects["bert_score"] = BertScorer()
             elif scorer == "bleurt":
+                from uqlm.black_box import BLEURTScorer
                 self.scorer_objects["bleurt"] = BLEURTScorer()
             elif scorer == "cosine_sim":
                 self.scorer_objects["cosine_sim"] = CosineScorer()

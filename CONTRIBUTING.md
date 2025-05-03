@@ -46,7 +46,7 @@ Please ensure your pull request adheres to the following guidelines:
 
 ## Development Setup
 
-1. Clone the repository: `git clone https://github.aetna.com/analytics-org/uqlm.git`
+1. Clone the repository: `git clone https://github.com/cvs-health/uqlm.git`
 2. Navigate to the project directory: `cd uqlm`
 3. Create and activate a virtual environment (using `venv` or `conda`)
 4. Install poetry (if you don't already have it): `pip install poetry`

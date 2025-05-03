@@ -15,6 +15,8 @@
 import os
 import pytest
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from uqlm.utils.plots import plot_model_accuracies
 

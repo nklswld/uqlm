@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/images/uqlm_flow_ds.png" />
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/uqlm_flow_ds.png" />
 </p>
 
 
@@ -13,10 +13,10 @@
 UQLM is a Python library for Large Language Model (LLM) hallucination detection using state-of-the-art uncertainty quantification techniques. 
 
 ## Installation
-Install using pip directly from the GitHub repository.
+The latest version can be installed from PyPI:
 
 ```bash
-pip install --user git+https://github.aetna.com/analytics-org/uqlm.git
+pip install uqlm
 ```
 
 ## Hallucination Detection
@@ -39,7 +39,7 @@ Below we provide illustrative code snippets and details about available scorers 
 These scorers assess uncertainty by measuring the consistency of multiple responses generated from the same prompt. They are compatible with any LLM, intuitive to use, and don't require access to internal model states or token probabilities.
 
 <p align="center">
-  <img src="./assets/images/black_box_graphic.png" />
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/black_box_graphic.png" />
 </p>
 
 **Example Usage:**
@@ -56,7 +56,7 @@ results = await bbuq.generate_and_score(prompts=prompts, num_responses=5)
 results.to_df()
 ```
 <p align="center">
-  <img src="./assets/images/black_box_output4.png" />
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/black_box_output4.png" />
 </p>
 
 Above, `use_best=True` implements mitigation so that the uncertainty-minimized responses is selected. Note that although we use `ChatVertexAI` in this example, any [LangChain Chat Model](https://js.langchain.com/docs/integrations/chat/) may be used. For a more detailed demo, refer to our [Black-Box UQ Demo](./examples/black_box_demo.ipynb).
@@ -76,7 +76,7 @@ Above, `use_best=True` implements mitigation so that the uncertainty-minimized r
 These scorers leverage token probabilities to estimate uncertainty.  They are significantly faster and cheaper than black-box methods, but require access to the LLM's internal probabilities, meaning they are not necessarily compatible with all LLMs/APIs.
 
 <p align="center">
-  <img src="./assets/images/white_box_graphic.png" />
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/white_box_graphic.png" />
 </p>
 
 **Example Usage:**
@@ -93,7 +93,7 @@ results = await wbuq.generate_and_score(prompts=prompts)
 results.to_df()
 ```
 <p align="center">
-  <img src="./assets/images/white_box_output2.png" />
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/white_box_output2.png" />
 </p>
 
 Again, any [LangChain Chat Model](https://js.langchain.com/docs/integrations/chat/) may be used in place of `ChatVertexAI`. For a more detailed demo, refer to our [White-Box UQ Demo](./examples/white_box_demo.ipynb).
@@ -109,7 +109,7 @@ Again, any [LangChain Chat Model](https://js.langchain.com/docs/integrations/cha
 These scorers use one or more LLMs to evaluate the reliability of the original LLM's response.  They offer high customizability through prompt engineering and the choice of judge LLM(s).
 
 <p align="center">
-  <img src="./assets/images/judges_graphic.png" />
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/judges_graphic.png" />
 </p>
 
 **Example Usage:**
@@ -128,7 +128,7 @@ results = await panel.generate_and_score(prompts=prompts)
 results.to_df()
 ```
 <p align="center">
-  <img src="./assets/images/panel_output2.png" />
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/panel_output2.png" />
 </p>
 
 Note that although we use `ChatVertexAI` in this example, we can use any [LangChain Chat Model](https://js.langchain.com/docs/integrations/chat/) as judges. For a more detailed demo, refer to our [LLM-as-a-Judge Demo](./examples/judges_demo.ipynb).
@@ -145,7 +145,7 @@ Note that although we use `ChatVertexAI` in this example, we can use any [LangCh
 These scorers leverage a weighted average of multiple individual scorers to provide a more robust uncertainty/confidence estimate. They offer high flexibility and customizability, allowing you to tailor the ensemble to specific use cases.
 
 <p align="center">
-  <img src="./assets/images/uqensemble_generate_score.png" />
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/uqensemble_generate_score.png" />
 </p>
 
 **Example Usage:**
@@ -177,7 +177,7 @@ results = await uqe.generate_and_score(prompts=prompts)
 results.to_df()
 ```
 <p align="center">
-  <img src="./assets/images/uqensemble_output2.png" />
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/uqensemble_output2.png" />
 </p>
 
 As with the other examples, any [LangChain Chat Model](https://js.langchain.com/docs/integrations/chat/) may be used in place of `ChatVertexAI`. For more detailed demos, refer to our [Off-the-Shelf Ensemble Demo](./examples/ensemble_off_the_shelf_demo.ipynb) (quick start) or our [Ensemble Tuning Demo](./examples/ensemble_tuning_demo.ipynb) (advanced).
@@ -189,17 +189,16 @@ As with the other examples, any [LangChain Chat Model](https://js.langchain.com/
 *   Generalized UQ Ensemble ([Bouchard & Chauhan, 2023](https://arxiv.org/abs/2504.19254))
 
 ## Documentation
-Check out our [documentation site](https://github.aetna.com/pages/analytics-org/uqlm/latest/index.html) for detailed instructions on using this package, including API reference and more.
+Check out our [documentation site](https://cvs-health.github.io/uqlm/latest/index.html) for detailed instructions on using this package, including API reference and more.
 
 ## Example notebooks
 Explore the following demo notebooks to see how to use UQLM for various hallucination detection methods:
 
-- [Black-Box Uncertainty Quantification](https://github.aetna.com/analytics-org/uqlm/blob/main/examples/black_box_demo.ipynb): A notebook demonstrating hallucination detection with black-box (consistency) scorers.
-- [White-Box Uncertainty Quantification](https://github.aetna.com/analytics-org/uqlm/blob/main/examples/white_box_demo.ipynb): A notebook demonstrating hallucination detection with white-box (token probability-based) scorers.
-- [LLM-as-a-Judge](https://github.aetna.com/analytics-org/uqlm/blob/main/examples/judges_demo.ipynb): A notebook demonstrating hallucination detection with LLM-as-a-Judge.
-- [Ensemble Uncertainty Quantification](https://github.aetna.com/analytics-org/uqlm/blob/main/examples/ensemble_tuning_demo.ipynb): A notebook demonstrating hallucination detection with a tunable ensemble of UQ scorers ([Bouchard & Chauhan, 2023](https://arxiv.org/abs/2504.19254)).
-- [BS Detector](https://github.aetna.com/analytics-org/uqlm/blob/main/examples/ensemble_off_the_shelf_demo.ipynb): A notebook demonstrating hallucination detection using BS Detector ([Chen & Mueller, 2023](https://arxiv.org/abs/2308.16175)) off-the-shelf ensemble.
-- [Semantic Entropy](https://github.aetna.com/analytics-org/uqlm/blob/main/examples/semantic_entropy_demo.ipynb): A notebook demonstrating hallucination detection using Semantic Entropy ([Farquhar et al., 2024](https://www.nature.com/articles/s41586-024-07421-0)).
+- [Black-Box Uncertainty Quantification](https://github.com/cvs-health/uqlm/blob/develop/examples/black_box_demo.ipynb): A notebook demonstrating hallucination detection with black-box (consistency) scorers.
+- [White-Box Uncertainty Quantification](https://github.com/cvs-health/uqlm/blob/develop/examples/white_box_demo.ipynb): A notebook demonstrating hallucination detection with white-box (token probability-based) scorers.
+- [LLM-as-a-Judge](https://github.com/cvs-health/uqlm/blob/develop/examples/judges_demo.ipynb): A notebook demonstrating hallucination detection with LLM-as-a-Judge.
+- [Tunable UQ Ensemble](https://github.com/cvs-health/uqlm/blob/develop/examples/ensemble_tuning_demo.ipynb): A notebook demonstrating hallucination detection with a tunable ensemble of UQ scorers ([Bouchard & Chauhan, 2023](https://arxiv.org/abs/2504.19254)).
+- [Off-the-Shelf UQ Ensemble](https://github.com/cvs-health/uqlm/blob/develop/examples/ensemble_off_the_shelf_demo.ipynb): A notebook demonstrating hallucination detection using BS Detector ([Chen & Mueller, 2023](https://arxiv.org/abs/2308.16175)) off-the-shelf ensemble.
 
 
 ## Associated Research

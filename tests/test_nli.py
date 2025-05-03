@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import gc
 from uqlm.black_box.nli import NLIScorer
 
 
@@ -23,5 +24,6 @@ def test_nli():
 
     nli_model = NLIScorer()
     probabilities = nli_model.predict(text1, text2)
-    print(probabilities)
+    del nli_model
+    gc.collect()
     assert abs(float(probabilities[0][0]) - 0.00159405) < 1e-5
