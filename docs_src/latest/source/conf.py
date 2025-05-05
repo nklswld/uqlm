@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath('../../../uqlm'))
 project = 'uqlm'
 copyright = '2025, CVS Health'
 author = 'Dylan Bouchard, Mohit Singh Chauhan'
-release = '0.1'
+release = '0.0.5.2'
 # version = importlib.metadata.version("uqlm")
 # release = ".".join(version.rsplit(".")[:-1])
 
@@ -76,7 +76,7 @@ html_theme = 'pydata_sphinx_theme'
 html_favicon = '_static/images/favicon/favicon.ico'
 
 html_theme_options = {
-    "github_url": "https://github.com/cvs-health/uqlm",
+    "github_url": "https://github.aetna.com/analytics-org/uqlm",
     "navbar_align": "left",
     "navbar_end": ["version-switcher", "theme-switcher", "navbar-icon-links"],
     "switcher": {
