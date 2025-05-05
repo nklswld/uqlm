@@ -68,7 +68,7 @@ Please ensure your code is properly formatted and linted before committing.
 
 ## License
 
-Before contributing to this CVS Health sponsored project, you will need to sign the associated [Contributor License Agreement (CLA)](https://forms.office.com/r/gMNfs4yCck)
+Before contributing to this CVS Health sponsored project, you will need to sign the associated [Contributor License Agreement (CLA)](https://forms.office.com/r/iFZWwzjt9C)
 
 ---
 
