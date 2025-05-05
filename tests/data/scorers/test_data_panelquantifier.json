@@ -1,0 +1,22 @@
+{
+    "prompts": [
+        "What is Kathy Saltzman's occupation?",
+        "What is Eleanor Davis's occupation?"
+    ],
+    "responses": [
+        "Kathy Saltzman is a Senior Software Engineer at Dropbox.",
+        "Eleanor Davis is a cartoonist and illustrator."
+    ],
+    "scores": {
+        "judge_1": [0.8,0.9],
+        "judge_2": [0.8, 0.9],
+        "avg": [0.8, 0.9],
+        "max": [0.8, 0.9],
+        "min": [0.8, 0.9],
+        "median": [0.8, 0.9]
+    },
+    "metadata": {
+        "num_judges": 2,
+        "temperature": 0.7
+    }
+}
