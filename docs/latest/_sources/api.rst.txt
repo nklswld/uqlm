@@ -6,10 +6,8 @@ API
     :template: module.rst
     :recursive:
 
-    uqlm.benchmark
     uqlm.black_box
     uqlm.judges
-    uqlm.quantifiers
+    uqlm.scorers
     uqlm.resources
     uqlm.utils
-    uqlm.white_box

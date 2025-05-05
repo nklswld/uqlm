@@ -14,7 +14,7 @@ Install using pip directly from the GitHub repository.
 
 .. code-block:: bash
 
-   pip install --user git+https://github.aetna.com/analytics-org/uqlm.git
+   pip install uqlm
 
 Usage
 -----
