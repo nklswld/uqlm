@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "uqlm"
-version = "0.1.0b7"
-description = ""
+version = "0.1.0rc0"
+description = "UQLM (Uncertainty Quantification for Language Models) is a Python package for UQ-based LLM hallucination detection."
 authors = ["Dylan Bouchard <dylan.bouchard@cvshealth.com>", "Mohit Singh Chauhan <mohitsingh.chauhan@cvshealth.com>"]
 maintainers = [
     "Dylan Bouchard <dbouchard92@gmail.com>", 
