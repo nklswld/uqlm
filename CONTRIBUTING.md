@@ -66,6 +66,10 @@ You're ready to develop!
 
 Please ensure your code is properly formatted and linted before committing.
 
+## License
+
+Before contributing to this CVS Health sponsored project, you will need to sign the associated [Contributor License Agreement (CLA)](https://forms.office.com/r/gMNfs4yCck)
+
 ---
 
 Thanks again for using and supporting uqlm!
