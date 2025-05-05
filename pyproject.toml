@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "uqlm"
-version = "0.1.0b"
+version = "0.1.0b7"
 description = ""
 authors = ["Dylan Bouchard <dylan.bouchard@cvshealth.com>", "Mohit Singh Chauhan <mohitsingh.chauhan@cvshealth.com>"]
 maintainers = [
@@ -32,7 +32,6 @@ optuna = "^4.0.0"
 bert-score = "^0.3.0"
 pandas = "^2.2.3"
 sentence-transformers = "^3.4.0"
-tf-keras = "^2.18.0"
 datasets = "^3.3.2"
 
 
