@@ -138,11 +138,6 @@ Below is a sample of code illustrating how to use the `UQEnsemble` class to cond
    results = await uqe.generate_and_score(prompts=prompts)
    results.to_df()
 
-   ## --Optional Tuning Step--
-   ## grade responses to define correct_indicators
-   # tuned_results = uqe.tune_params(correct_indicators=correct_indicators) # Tune weights
-   ## uqe is now tuned and ready to use!
-
 .. raw:: html
 
    <p align="center">
