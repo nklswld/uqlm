@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath('../../../uqlm'))
 project = 'uqlm'
 copyright = '2025, CVS Health'
 author = 'Dylan Bouchard, Mohit Singh Chauhan'
-release = '0.1.0'
+release = '0.1'
 # version = importlib.metadata.version("uqlm")
 # release = ".".join(version.rsplit(".")[:-1])
 
