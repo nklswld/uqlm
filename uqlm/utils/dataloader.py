@@ -74,7 +74,7 @@ _dataset_default_params = {
         "extra_processing": {
             "regex_filters": [
                 {
-                    "pattern": "#### ([-+]?\d*\\.\d+|[-+]?\d+)",  # regex pattern
+                    "pattern": r"#### ([-+]?\d*\.\d+|[-+]?\d+)",  # regex pattern
                     "col": "answer",  # dataset col to apply pattern to
                     "operation": "search",  # type of regex operation
                     "group": 1,
@@ -108,7 +108,7 @@ _dataset_default_params = {
             "rename_columns": {"question_concat": "question", "Answer": "answer"},
             "regex_filters": [
                 {
-                    "pattern": "#### ([-+]?\d*\\.\d+|[-+]?\d+)",  # get numbers only (like gsm8k)
+                    "pattern": r"#### ([-+]?\d*\.\d+|[-+]?\d+)",  # get numbers only (like gsm8k)
                     "col": "answer",
                     "operation": "search",
                     "group": 1,
