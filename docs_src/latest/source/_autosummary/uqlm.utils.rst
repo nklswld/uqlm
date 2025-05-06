@@ -28,9 +28,9 @@
    :template: module.rst
    :recursive:
 
-   dataloader
-   plots
-   postprocessors
-   response_generator
-   tuner
+   uqlm.utils.dataloader
+   uqlm.utils.plots
+   uqlm.utils.postprocessors
+   uqlm.utils.response_generator
+   uqlm.utils.tuner
 
