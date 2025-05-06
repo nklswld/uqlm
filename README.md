@@ -186,7 +186,7 @@ As with the other examples, any [LangChain Chat Model](https://js.langchain.com/
 **Available Scorers:**
 
 *   BS Detector ([Chen & Mueller, 2023](https://arxiv.org/abs/2308.16175))
-*   Generalized UQ Ensemble ([Bouchard & Chauhan, 2023](https://arxiv.org/abs/2504.19254))
+*   Generalized UQ Ensemble ([Bouchard & Chauhan, 2025](https://arxiv.org/abs/2504.19254))
 
 ## Documentation
 Check out our [documentation site](https://cvs-health.github.io/uqlm/latest/index.html) for detailed instructions on using this package, including API reference and more.
