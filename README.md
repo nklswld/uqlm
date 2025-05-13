@@ -6,8 +6,8 @@
 # uqlm: Uncertainty Quantification for Language Models
 
 [![Build Status](https://github.com/cvs-health/uqlm/actions/workflows/ci.yaml/badge.svg)](https://github.com/cvs-health/uqlm/actions)
-[![Documentation Status](https://img.shields.io/badge/docs-latest-blue.svg)](https://cvs-health.github.io/uqlm/latest/index.html)
 [![PyPI version](https://badge.fury.io/py/uqlm.svg)](https://pypi.org/project/uqlm/)
+[![Documentation Status](https://img.shields.io/badge/docs-latest-blue.svg)](https://cvs-health.github.io/uqlm/latest/index.html)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![](https://img.shields.io/badge/arXiv-2504.19254-B31B1B.svg)](https://arxiv.org/abs/2504.19254)
 
