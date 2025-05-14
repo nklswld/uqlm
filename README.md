@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/uqlm_flow_ds.png" />
+  <img src="./assets/images/uqlm_flow_ds.png" />
 </p>
 
 
@@ -40,7 +40,7 @@ Below we provide illustrative code snippets and details about available scorers 
 These scorers assess uncertainty by measuring the consistency of multiple responses generated from the same prompt. They are compatible with any LLM, intuitive to use, and don't require access to internal model states or token probabilities.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/black_box_graphic.png" />
+  <img src="./assets/images/black_box_graphic.png" />
 </p>
 
 **Example Usage:**
@@ -57,7 +57,7 @@ results = await bbuq.generate_and_score(prompts=prompts, num_responses=5)
 results.to_df()
 ```
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/black_box_output4.png" />
+  <img src="./assets/images/black_box_output4.png" />
 </p>
 
 Above, `use_best=True` implements mitigation so that the uncertainty-minimized responses is selected. Note that although we use `ChatVertexAI` in this example, any [LangChain Chat Model](https://js.langchain.com/docs/integrations/chat/) may be used. For a more detailed demo, refer to our [Black-Box UQ Demo](./examples/black_box_demo.ipynb).
@@ -77,7 +77,7 @@ Above, `use_best=True` implements mitigation so that the uncertainty-minimized r
 These scorers leverage token probabilities to estimate uncertainty.  They are significantly faster and cheaper than black-box methods, but require access to the LLM's internal probabilities, meaning they are not necessarily compatible with all LLMs/APIs.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/white_box_graphic.png" />
+  <img src="./assets/images/white_box_graphic.png" />
 </p>
 
 **Example Usage:**
@@ -94,7 +94,7 @@ results = await wbuq.generate_and_score(prompts=prompts)
 results.to_df()
 ```
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/white_box_output2.png" />
+  <img src="./assets/images/white_box_output2.png" />
 </p>
 
 Again, any [LangChain Chat Model](https://js.langchain.com/docs/integrations/chat/) may be used in place of `ChatVertexAI`. For a more detailed demo, refer to our [White-Box UQ Demo](./examples/white_box_demo.ipynb).
@@ -110,7 +110,7 @@ Again, any [LangChain Chat Model](https://js.langchain.com/docs/integrations/cha
 These scorers use one or more LLMs to evaluate the reliability of the original LLM's response.  They offer high customizability through prompt engineering and the choice of judge LLM(s).
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/judges_graphic.png" />
+  <img src="./assets/images/judges_graphic.png" />
 </p>
 
 **Example Usage:**
@@ -129,7 +129,7 @@ results = await panel.generate_and_score(prompts=prompts)
 results.to_df()
 ```
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/panel_output2.png" />
+  <img src="./assets/images/panel_output2.png" />
 </p>
 
 Note that although we use `ChatVertexAI` in this example, we can use any [LangChain Chat Model](https://js.langchain.com/docs/integrations/chat/) as judges. For a more detailed demo illustrating how to customize a panel of LLM judges, refer to our [LLM-as-a-Judge Demo](./examples/judges_demo.ipynb).
@@ -146,7 +146,7 @@ Note that although we use `ChatVertexAI` in this example, we can use any [LangCh
 These scorers leverage a weighted average of multiple individual scorers to provide a more robust uncertainty/confidence estimate. They offer high flexibility and customizability, allowing you to tailor the ensemble to specific use cases.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/uqensemble_generate_score.png" />
+  <img src="./assets/images/uqensemble_generate_score.png" />
 </p>
 
 **Example Usage:**
@@ -178,7 +178,7 @@ results = await uqe.generate_and_score(prompts=prompts)
 results.to_df()
 ```
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/uqensemble_output2.png" />
+  <img src="./assets/images/uqensemble_output2.png" />
 </p>
 
 As with the other examples, any [LangChain Chat Model](https://js.langchain.com/docs/integrations/chat/) may be used in place of `ChatVertexAI`. For more detailed demos, refer to our [Off-the-Shelf Ensemble Demo](./examples/ensemble_off_the_shelf_demo.ipynb) (quick start) or our [Ensemble Tuning Demo](./examples/ensemble_tuning_demo.ipynb) (advanced).
