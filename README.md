@@ -1,4 +1,5 @@
-![uqlm_flow_ds](https://github.com/user-attachments/assets/567190dc-3723-45d4-b024-907ef636d3b2)
+![Copy of UQLM Graphics (4)](https://github.com/user-attachments/assets/a45021b1-c846-4c72-8153-effd92fcd36c)
+
 
 # uqlm: Uncertainty Quantification for Language Models
 
