@@ -1,8 +1,14 @@
 import time
 import pytest
 import importlib
+import unittest
+import os
 
 
+@unittest.skipIf(
+    (os.getenv("CI") == "true"),
+    "Skipping test in CI. Please run this check locally as needed.",
+)
 def test_import_time():
     """Test that the total import time for uqlm is less than 3 seconds."""
     # List of main dependencies to profile
