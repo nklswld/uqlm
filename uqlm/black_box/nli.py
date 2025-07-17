@@ -17,9 +17,10 @@ import math
 import numpy as np
 import warnings
 from collections import deque, Counter
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-
+import time
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 from uqlm.black_box.baseclass.similarity_scorer import SimilarityScorer
 
 
@@ -83,7 +84,7 @@ class NLIScorer(SimilarityScorer):
         probabilites = np.exp(np_logits) / np.exp(np_logits).sum(axis=-1, keepdims=True)
         return probabilites
 
-    def evaluate(self, responses: List[str], sampled_responses: List[List[str]], responses_logprobs: List[List[Dict[str, Any]]] = None, sampled_responses_logprobs: List[List[List[Dict[str, Any]]]] = None, use_best: bool = False, compute_entropy: bool = False, best_response_selection: str = "discrete") -> Dict[str, Any]:
+    def evaluate(self, responses: List[str], sampled_responses: List[List[str]], responses_logprobs: List[List[Dict[str, Any]]] = None, sampled_responses_logprobs: List[List[List[Dict[str, Any]]]] = None, use_best: bool = False, compute_entropy: bool = False, best_response_selection: str = "discrete", progress_bar: Optional[bool] = True) -> Dict[str, Any]:
         """
         Evaluate confidence scores on LLM responses.
 
@@ -108,6 +109,9 @@ class NLIScorer(SimilarityScorer):
         compute_entropy : bool, default=False
             Specifies whether to include semantic entropy in returned result
 
+        progress_bar : bool, default=True
+            If True, displays a progress bar while scoring responses
+
         best_response_selection : str, default="discrete"
             Specifies the type of entropy confidence score to compute best response. Must be one of "discrete" or "token-based".
 
@@ -120,13 +124,25 @@ class NLIScorer(SimilarityScorer):
         self.num_responses = len(sampled_responses[0])
         self.logprobs, self.multiple_logprobs = responses_logprobs, sampled_responses_logprobs
         observed_consistency_data = {"noncontradiction": [], "discrete_semantic_entropy": [], "tokenprob_semantic_entropy": [], "responses": responses, "sampled_responses": sampled_responses}
-        for i, response in enumerate(responses):
+
+        def _process_i(i, response):
             oc_result_i = self._observed_consistency_i(original=response, candidates=sampled_responses[i], i=i, use_best=use_best, compute_entropy=compute_entropy)
             observed_consistency_data["noncontradiction"].append(oc_result_i["nli_score_i"])
             observed_consistency_data["discrete_semantic_entropy"].append(oc_result_i["discrete_semantic_entropy"])
             observed_consistency_data["tokenprob_semantic_entropy"].append(oc_result_i["tokenprob_semantic_entropy"])
             responses[i] = oc_result_i["response"]  # Replace with optimized response if use_best
             sampled_responses[i] = oc_result_i["candidates"]  # Replace with updated candidates if use_best
+
+        if progress_bar:
+            with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.completed}/{task.total}"), TimeElapsedColumn()) as progress:
+                task = progress.add_task("[cyan]Scoring responses with NLI...", total=len(responses))
+                for i, response in enumerate(responses):
+                    _process_i(i, response)
+                    progress.update(task, advance=1)
+                time.sleep(0.1)
+        else:
+            for i, response in enumerate(responses):
+                _process_i(i, response)
 
         if use_best:
             observed_consistency_data["responses"] = responses
