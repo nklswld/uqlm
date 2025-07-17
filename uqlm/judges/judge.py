@@ -114,6 +114,7 @@ class LLMJudge(ResponseGenerator):
         self.keywords_to_scores_dict = keywords_to_scores_dict
         self._validate_inputs()
         self.system_prompt = self.instruction if not system_prompt else system_prompt
+        self.is_judge = True
 
     async def judge_responses(self, prompts: List[str], responses: List[str], retries: int = 5) -> Dict[str, Any]:
         """
@@ -136,7 +137,6 @@ class LLMJudge(ResponseGenerator):
             Dictionary containing Q/A concatenation prompts, judge responses, and judge scores
         """
         concatenated_qa = [self.template_ques_ans.format(prompts[i], responses[i]) for i in range(len(prompts))]
-        print("Generating LLMJudge scores...")
         with contextlib.redirect_stdout(io.StringIO()):
             data = await self.generate_responses(prompts=concatenated_qa, count=1)
         df = pd.DataFrame({"judge_prompts": data["data"]["prompt"], "judge_responses": data["data"]["response"], "scores": self._extract_answers(responses=data["data"]["response"])})
