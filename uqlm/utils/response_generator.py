@@ -143,7 +143,7 @@ class ResponseGenerator:
                     self.progress_task = self.progress.add_task(f"- Generating candidate responses ({self.count} per prompt)...", total=len(prompts) * self.count)
             for batch_idx, prompt_batch in enumerate(prompts_partition):
                 if batch_idx == len(prompts_partition) - 1:
-                    check_batch_time = False 
+                    check_batch_time = False
                 await self._process_batch(prompt_batch, duplicated_prompts, generations, check_batch_time)
             time.sleep(0.1)
 

@@ -21,6 +21,7 @@ import time
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 from rich import print as rprint
 
+
 class SemanticEntropy(UncertaintyQuantifier):
     def __init__(
         self, llm=None, postprocessor: Any = None, device: Any = None, use_best: bool = True, best_response_selection: str = "discrete", system_prompt: str = "You are a helpful assistant.", max_calls_per_min: Optional[int] = None, use_n_param: bool = False, sampling_temperature: float = 1.0, verbose: bool = False, nli_model_name: str = "microsoft/deberta-large-mnli", max_length: int = 2000
@@ -145,6 +146,7 @@ class SemanticEntropy(UncertaintyQuantifier):
         best_responses = [None] * n_prompts
         tokenprob_semantic_entropy = [None] * n_prompts
         rprint("📈 Scoring")
+
         def _process_i(i):
             candidates = [self.responses[i]] + self.sampled_responses[i]
             candidate_logprobs = [self.logprobs[i]] + self.multiple_logprobs[i] if (self.logprobs and self.multiple_logprobs) else None
