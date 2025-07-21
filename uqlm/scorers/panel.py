@@ -82,9 +82,11 @@ class LLMPanel(UncertaintyQuantifier):
         UQResult
             UQResult containing prompts, responses, Q/A concatenations, judge responses, and judge scores
         """
-        rprint("🤖 Generation")
+        if progress_bar:
+            rprint("🤖 Generation")
         responses = await self.generate_original_responses(prompts, progress_bar=progress_bar)
-        rprint("📈 Scoring")
+        if progress_bar:
+            rprint("📈 Scoring")
         return await self.score(prompts=prompts, responses=responses, progress_bar=progress_bar)
 
     async def score(self, prompts: List[str], responses: Optional[List[str]] = None, progress_bar: bool = True) -> UQResult:

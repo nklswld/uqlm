@@ -146,7 +146,7 @@ class LLMJudge(ResponseGenerator):
             df_sub = df[pd.isna(df.scores)]
             if len(df_sub) > 0:
                 with contextlib.redirect_stdout(io.StringIO()):
-                    tmp = await self.generate_responses(prompts=list(df_sub.judge_prompts), count=1, system_prompt=self.system_prompt)
+                    tmp = await self.generate_responses(prompts=list(df_sub.judge_prompts), count=1, system_prompt=self.system_prompt, progress_bar=False)
                 df.loc[df_sub.index, "scores"] = self._extract_answers(responses=tmp["data"]["response"])
         return {col: list(df[col]) for col in df.columns}
 

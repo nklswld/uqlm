@@ -146,7 +146,8 @@ class UQEnsemble(UncertaintyQuantifier):
             In order to use white-box components, BaseChatModel must have logprobs attribute
             """
             self.llm.logprobs = True
-        rprint("🤖 Generation")
+        if progress_bar:
+            rprint("🤖 Generation")
         responses = await self.generate_original_responses(prompts, progress_bar=progress_bar)
         if self.black_box_components:
             sampled_responses = await self.generate_candidate_responses(prompts, progress_bar=progress_bar)
@@ -198,8 +199,9 @@ class UQEnsemble(UncertaintyQuantifier):
         if not logprobs_results:
             self.logprobs = [None] * len(prompts)
             self.multiple_logprobs = [[None] * self.num_responses] * len(prompts)
-
-        rprint("📈 Scoring")
+            
+        if progress_bar:
+            rprint("📈 Scoring")
         if self.black_box_components:
             black_box_results = self.black_box_object.score(responses=self.responses, sampled_responses=self.sampled_responses, progress_bar=progress_bar)
             if self.use_best:
@@ -312,8 +314,9 @@ class UQEnsemble(UncertaintyQuantifier):
         """
         self._validate_grader(grader_function)
         await self.generate_and_score(prompts=prompts, num_responses=num_responses, progress_bar=progress_bar)
-
-        rprint("⚙️ Optimization")
+        
+        if progress_bar:
+            rprint("⚙️ Optimization")
         correct_indicators = self._grade_responses(ground_truth_answers=ground_truth_answers, grader_function=grader_function, progress_bar=progress_bar)
         tuned_result = self.tune_from_graded(correct_indicators=correct_indicators, weights_objective=weights_objective, thresh_bounds=thresh_bounds, thresh_objective=thresh_objective, n_trials=n_trials, step_size=step_size, fscore_beta=fscore_beta, progress_bar=progress_bar)
         return tuned_result
@@ -433,7 +436,7 @@ class UQEnsemble(UncertaintyQuantifier):
             self._construct_hhem()  # use vectara hhem if no grader is provided
             pairs = [(a, r) for a, r in zip(ground_truth_answers, self.responses)]
             if progress_bar:
-                rprint("   - [black]Grading responses against provided ground truth answers...")
+                rprint("  - [black]Grading responses against provided ground truth answers...")
             halluc_scores = self.hhem.predict(pairs)
             correct_indicators = [(s > 0.5) * 1 for s in halluc_scores]
         return correct_indicators
