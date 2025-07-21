@@ -175,7 +175,7 @@ class ResponseGenerator:
         messages = [self.system_message, HumanMessage(prompt)]
         logprobs = [None] * count
         result = await self.llm.agenerate([messages])
-        if self.progress:
+        if self.progress_task is not None:
             for _ in range(count):
                 self.progress.update(self.progress_task, advance=1)
         if hasattr(self.llm, "logprobs"):

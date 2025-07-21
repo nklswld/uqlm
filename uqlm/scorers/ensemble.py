@@ -209,7 +209,7 @@ class UQEnsemble(UncertaintyQuantifier):
             white_box_results = self.white_box_object.score(logprobs_results=self.logprobs)
 
         if self.judges:
-            judge_results = await self.judges_object.score(prompts=prompts, responses=self.responses)
+            judge_results = await self.judges_object.score(prompts=prompts, responses=self.responses, progress_bar=progress_bar)
         self.component_scores = {k: [] for k in self.component_names}
 
         for i, component in enumerate(self.component_scores):
@@ -433,11 +433,8 @@ class UQEnsemble(UncertaintyQuantifier):
             self._construct_hhem()  # use vectara hhem if no grader is provided
             pairs = [(a, r) for a, r in zip(ground_truth_answers, self.responses)]
             if progress_bar:
-                console = Console()
-                with console.status("- [black]Grading responses against provided ground truth answers..."):
-                    halluc_scores = self.hhem.predict(pairs)
-            else:
-                halluc_scores = self.hhem.predict(pairs)
+                rprint("   - [black]Grading responses against provided ground truth answers...")
+            halluc_scores = self.hhem.predict(pairs)
             correct_indicators = [(s > 0.5) * 1 for s in halluc_scores]
         return correct_indicators
 
