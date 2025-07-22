@@ -21,7 +21,6 @@ import time
 from langchain_core.language_models.chat_models import BaseChatModel
 from rich import print as rprint
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
-from rich.console import Console
 
 from uqlm.judges.judge import LLMJudge
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
@@ -59,7 +58,7 @@ class UQEnsemble(UncertaintyQuantifier):
             A langchain llm `BaseChatModel`. User is responsible for specifying temperature and other
             relevant parameters to the constructor of their `llm` object.
 
-        scorers : List containing instances of BaseChatModel, LLMJudge, black-box scorer names from ['semantic_negentropy', 'noncontradiction','exact_match', 'bert_score', 'bleurt', 'cosine_sim'], or white-box scorer names from ["normalized_probability", "min_probability"] default=None
+        scorers : List containing instances of BaseChatModel, LLMJudge, black-box scorer names from ['semantic_negentropy', 'noncontradiction','exact_match', 'bert_score', 'cosine_sim'], or white-box scorer names from ["normalized_probability", "min_probability"] default=None
             Specifies which UQ components to include. If None, defaults to the off-the-shelf BS Detector ensemble by
             Chen and Mueller (2023) :footcite:`chen2023quantifyinguncertaintyanswerslanguage` which uses components
             ["noncontradiction", "exact_match","self_reflection"] with respective weights of [0.56, 0.14, 0.3]
@@ -146,7 +145,8 @@ class UQEnsemble(UncertaintyQuantifier):
             In order to use white-box components, BaseChatModel must have logprobs attribute
             """
             self.llm.logprobs = True
-        rprint("🤖 Generation")
+        if progress_bar:
+            rprint("🤖 Generation")
         responses = await self.generate_original_responses(prompts, progress_bar=progress_bar)
         if self.black_box_components:
             sampled_responses = await self.generate_candidate_responses(prompts, progress_bar=progress_bar)
@@ -199,7 +199,8 @@ class UQEnsemble(UncertaintyQuantifier):
             self.logprobs = [None] * len(prompts)
             self.multiple_logprobs = [[None] * self.num_responses] * len(prompts)
 
-        rprint("📈 Scoring")
+        if progress_bar:
+            rprint("📈 Scoring")
         if self.black_box_components:
             black_box_results = self.black_box_object.score(responses=self.responses, sampled_responses=self.sampled_responses, progress_bar=progress_bar)
             if self.use_best:
@@ -209,7 +210,7 @@ class UQEnsemble(UncertaintyQuantifier):
             white_box_results = self.white_box_object.score(logprobs_results=self.logprobs)
 
         if self.judges:
-            judge_results = await self.judges_object.score(prompts=prompts, responses=self.responses)
+            judge_results = await self.judges_object.score(prompts=prompts, responses=self.responses, progress_bar=progress_bar)
         self.component_scores = {k: [] for k in self.component_names}
 
         for i, component in enumerate(self.component_scores):
@@ -313,7 +314,8 @@ class UQEnsemble(UncertaintyQuantifier):
         self._validate_grader(grader_function)
         await self.generate_and_score(prompts=prompts, num_responses=num_responses, progress_bar=progress_bar)
 
-        rprint("⚙️ Optimization")
+        if progress_bar:
+            rprint("⚙️ Optimization")
         correct_indicators = self._grade_responses(ground_truth_answers=ground_truth_answers, grader_function=grader_function, progress_bar=progress_bar)
         tuned_result = self.tune_from_graded(correct_indicators=correct_indicators, weights_objective=weights_objective, thresh_bounds=thresh_bounds, thresh_objective=thresh_objective, n_trials=n_trials, step_size=step_size, fscore_beta=fscore_beta, progress_bar=progress_bar)
         return tuned_result
@@ -433,11 +435,8 @@ class UQEnsemble(UncertaintyQuantifier):
             self._construct_hhem()  # use vectara hhem if no grader is provided
             pairs = [(a, r) for a, r in zip(ground_truth_answers, self.responses)]
             if progress_bar:
-                console = Console()
-                with console.status("- [black]Grading responses against provided ground truth answers..."):
-                    halluc_scores = self.hhem.predict(pairs)
-            else:
-                halluc_scores = self.hhem.predict(pairs)
+                rprint("  - [black]Grading responses against provided ground truth answers...")
+            halluc_scores = self.hhem.predict(pairs)
             correct_indicators = [(s > 0.5) * 1 for s in halluc_scores]
         return correct_indicators
 
