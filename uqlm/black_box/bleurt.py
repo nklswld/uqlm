@@ -13,22 +13,18 @@
 # limitations under the License.
 
 
-import warnings
-
 class BLEURTScorer:
     """
-    Deprecated placeholder class for bleurt scorer. 
-    
+    Deprecated placeholder class for bleurt scorer.
+
     """
+
     def __init__(self):
-        raise ImportError(
-            "BLEURTScorer is deprecated as of v0.2.0 and will be removed in a future version. "
-        )
+        raise ImportError("BLEURTScorer is deprecated as of v0.2.0 and will be removed in a future version. ")
 
     def evaluate(self, *args, **kwargs):
-        raise NotImplementedError(
-            "BLEURTScorer is deprecated as of v0.2.0 and will be removed in a future version. "
-        )
+        raise NotImplementedError("BLEURTScorer is deprecated as of v0.2.0 and will be removed in a future version. ")
+
 
 # import importlib.resources as resources
 # import numpy as np
