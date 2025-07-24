@@ -11,7 +11,7 @@ maintainers = [
     "Viren Bajaj <virenbajaj4@gmail.com>",
     "Zeya Ahmad <zeyahmd@gmail.com>"
 ]
-readme = "README.md"
+readme = "README_PYPI.md"
 packages = [
     { include = "uqlm" },
     { include = "uqlm/scorers" },

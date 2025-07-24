@@ -1,9 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/images/uqlm_flow_ds_dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="assets/images/uqlm_flow_ds.png">
-    <img src="assets/images/uqlm_flow_ds.png" alt="UQLM Flow Diagram" />
-  </picture>
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/uqlm_flow_ds.png" />
 </p>
 
 
@@ -44,11 +40,7 @@ Below we provide illustrative code snippets and details about available scorers 
 These scorers assess uncertainty by measuring the consistency of multiple responses generated from the same prompt. They are compatible with any LLM, intuitive to use, and don't require access to internal model states or token probabilities.
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/images/black_box_graphic_dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="assets/images/black_box_graphic.png">
-    <img src="assets/images/black_box_graphic.png" alt="Black Box Graphic" />
-  </picture>
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/black_box_graphic.png" />
 </p>
 
 **Example Usage:**
@@ -85,11 +77,7 @@ Above, `use_best=True` implements mitigation so that the uncertainty-minimized r
 These scorers leverage token probabilities to estimate uncertainty.  They are significantly faster and cheaper than black-box methods, but require access to the LLM's internal probabilities, meaning they are not necessarily compatible with all LLMs/APIs.
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/images/white_box_graphic_dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="assets/images/white_box_graphic.png">
-    <img src="assets/images/white_box_graphic.png" alt="White Box Graphic" />
-  </picture>
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/white_box_graphic.png" />
 </p>
 
 **Example Usage:**
@@ -122,11 +110,7 @@ Again, any [LangChain Chat Model](https://js.langchain.com/docs/integrations/cha
 These scorers use one or more LLMs to evaluate the reliability of the original LLM's response.  They offer high customizability through prompt engineering and the choice of judge LLM(s).
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/images/judges_graphic_dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="assets/images/judges_graphic.png">
-    <img src="assets/images/judges_graphic.png" alt="Judges Graphic" />
-  </picture>
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/judges_graphic.png" />
 </p>
 
 **Example Usage:**
@@ -163,11 +147,7 @@ Note that although we use `ChatVertexAI` in this example, we can use any [LangCh
 These scorers leverage a weighted average of multiple individual scorers to provide a more robust uncertainty/confidence estimate. They offer high flexibility and customizability, allowing you to tailor the ensemble to specific use cases.
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/images/uqensemble_generate_score_dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="assets/images/uqensemble_generate_score.png">
-    <img src="assets/images/uqensemble_generate_score.png" alt="Uqensemble Generate Score" />
-  </picture>
+  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/uqensemble_generate_score.png" />
 </p>
 
 **Example Usage:**
