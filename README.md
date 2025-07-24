@@ -5,6 +5,9 @@
     <img src="assets/images/uqlm_flow_ds.png" alt="UQLM Flow Diagram" />
   </picture>
 </p>
+<p align="center">
+  <img src="assets/images/uqlm_flow_ds_one.png" />
+</p>
 
 
 # uqlm: Uncertainty Quantification for Language Models
