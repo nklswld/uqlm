@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cvs-health/uqlm/develop/assets/images/uqlm_flow_ds.png" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/images/uqlm_flow_ds_dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="assets/images/uqlm_flow_ds.png">
+    <img src="assets/images/uqlm_flow_ds.png" alt="UQLM Flow Diagram" />
+  </picture>
 </p>
 
 
