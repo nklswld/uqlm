@@ -18,6 +18,7 @@ import io
 
 import numpy as np
 import pandas as pd
+import rich
 from typing import Any, Dict, List, Optional
 
 from uqlm.utils.response_generator import ResponseGenerator
@@ -116,7 +117,7 @@ class LLMJudge(ResponseGenerator):
         self.system_prompt = self.instruction if not system_prompt else system_prompt
         self.is_judge = True
 
-    async def judge_responses(self, prompts: List[str], responses: List[str], retries: int = 5, progress_bar: bool = True) -> Dict[str, Any]:
+    async def judge_responses(self, prompts: List[str], responses: List[str], retries: int = 5, progress_bar: Optional[rich.progress.Progress] = None) -> Dict[str, Any]:
         """
         Judge responses for correctness.
 
@@ -130,6 +131,9 @@ class LLMJudge(ResponseGenerator):
 
         retries : int, default=5
             Number of times to retry for failed score extraction
+
+        progress_bar : rich.progress.Progress, default=None
+            If provided, displays a progress bar while scoring responses
 
         Returns
         -------

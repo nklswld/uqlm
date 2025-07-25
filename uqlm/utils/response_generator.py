@@ -17,10 +17,10 @@ import itertools
 import time
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
+from rich.progress import Progress
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages.human import HumanMessage
 from langchain_core.messages.system import SystemMessage
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
 
 class ResponseGenerator:
@@ -48,7 +48,7 @@ class ResponseGenerator:
         self.progress_task = None
         self.is_judge = False
 
-    async def generate_responses(self, prompts: List[str], system_prompt: str = "You are a helpful assistant.", count: int = 1, progress_bar: Optional[bool] = True) -> Dict[str, Any]:
+    async def generate_responses(self, prompts: List[str], system_prompt: str = "You are a helpful assistant.", count: int = 1, progress_bar: Optional[Progress] = None) -> Dict[str, Any]:
         """
         Generates evaluation dataset from a provided set of prompts. For each prompt,
         `self.count` responses are generated.
@@ -64,8 +64,8 @@ class ResponseGenerator:
         count : int, default=1
             Specifies number of responses to generate for each prompt.
 
-        progress_bar : bool, default=True
-            If True, displays a progress bar while generating responses
+        progress_bar : rich.progress.Progress, default=None
+            If provided, displays a progress bar while scoring responses
 
         Returns
         -------
@@ -126,7 +126,7 @@ class ResponseGenerator:
     async def _generate_in_batches(self, prompts: List[str], progress_bar: Optional[bool] = True) -> Tuple[Dict[str, List[Any]], List[str]]:
         """Executes async IO with langchain in batches to avoid rate limit error"""
         assert self.count > 0, "count must be greater than 0"
-        self.use_progress_bar = progress_bar
+        self.progress_bar = progress_bar
         if self.max_calls_per_min:
             batch_size = max(1, self.max_calls_per_min // self.count)
             check_batch_time = True
@@ -136,18 +136,17 @@ class ResponseGenerator:
 
         duplicated_prompts = []
         generations = {"responses": [], "logprobs": []}
-        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.completed}/{task.total}"), TimeElapsedColumn()) as self.progress:
-            if progress_bar:
-                if self.count == 1:
-                    self.progress_task = self.progress.add_task(f"- {'Scoring responses with LLM-as-a-Judge' if self.is_judge else 'Generating responses'}...", total=len(prompts))
-                else:
-                    self.progress_task = self.progress.add_task(f"- Generating candidate responses ({self.count} per prompt)...", total=len(prompts) * self.count)
-            for batch_idx, prompt_batch in enumerate(prompts_partition):
-                if batch_idx == len(prompts_partition) - 1:
-                    check_batch_time = False
-                await self._process_batch(prompt_batch, duplicated_prompts, generations, check_batch_time)
-            time.sleep(0.1)
+        if self.progress_bar:
+            if self.count == 1:
+                self.progress_task = self.progress_bar.add_task(f"  - {'Scoring responses with LLM-as-a-Judge' if self.is_judge else 'Generating responses'}...", total=len(prompts))
+            else:
+                self.progress_task = self.progress_bar.add_task(f"  - Generating candidate responses ({self.count} per prompt)...", total=len(prompts) * self.count)
 
+        for batch_idx, prompt_batch in enumerate(prompts_partition):
+            if batch_idx == len(prompts_partition) - 1:
+                check_batch_time = False
+            await self._process_batch(prompt_batch, duplicated_prompts, generations, check_batch_time)
+        time.sleep(0.1)
         return generations, duplicated_prompts
 
     async def _process_batch(self, prompt_batch: List[str], duplicated_prompts: List[str], generations: Dict[str, List[Any]], check_batch_time: bool) -> None:
@@ -176,9 +175,9 @@ class ResponseGenerator:
         messages = [self.system_message, HumanMessage(prompt)]
         logprobs = [None] * count
         result = await self.llm.agenerate([messages])
-        if self.use_progress_bar:
+        if self.progress_bar:
             for _ in range(count):
-                self.progress.update(self.progress_task, advance=1)
+                self.progress_bar.update(self.progress_task, advance=1)
         if hasattr(self.llm, "logprobs"):
             if self.llm.logprobs:
                 if "logprobs_result" in result.generations[0][0].generation_info:

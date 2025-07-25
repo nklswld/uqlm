@@ -16,9 +16,9 @@
 import numpy as np
 from numpy.typing import ArrayLike
 import optuna
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 import time
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+from rich.progress import Progress
 from sklearn.metrics import fbeta_score, balanced_accuracy_score, accuracy_score, roc_auc_score, log_loss, average_precision_score, brier_score_loss
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -31,7 +31,7 @@ class Tuner:
         """
         self.objective_to_func = {"fbeta_score": self._f_score, "accuracy_score": accuracy_score, "balanced_accuracy_score": balanced_accuracy_score, "log_loss": log_loss, "roc_auc": roc_auc_score, "average_precision": average_precision_score, "brier_score": brier_score_loss}
 
-    def tune_threshold(self, y_scores: List[float], correct_indicators: List[bool], thresh_objective: str = "fbeta_score", fscore_beta: float = 1, bounds: Tuple[float, float] = (0, 1), step_size: int = 0.01, progress_bar: bool = False) -> float:
+    def tune_threshold(self, y_scores: List[float], correct_indicators: List[bool], thresh_objective: str = "fbeta_score", fscore_beta: float = 1, bounds: Tuple[float, float] = (0, 1), step_size: int = 0.01, progress_bar: Optional[Progress] = None) -> float:
         """
         Conducts 1-dimensional grid search for threshold.
 
@@ -55,8 +55,8 @@ class Tuner:
         step_size : float, default=0.01
             Indicates step size in grid search, if used.
 
-        progress_bar : bool, default=False
-            If True, displays a progress bar during optimization routine
+        progress_bar : rich.progress.Progress, default=None
+            If provided, displays a progress bar while scoring responses
 
         Returns
         -------
@@ -72,21 +72,21 @@ class Tuner:
         y_scores_array = np.array(y_scores)
         y_pred_matrix = (y_scores_array[:, np.newaxis] > threshold_values).astype(int)
         values = np.zeros(len(threshold_values))
-        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), TimeElapsedColumn()) as progress:
+
+        if self.progress_bar:
+            progress_task = self.progress_bar.add_task("  - [black]Optimizing threshold with grid search...", total=len(threshold_values))
+
+        for i, y_pred in enumerate(y_pred_matrix.T):
+            values[i] = -threshold_tuning_objective(np.array(correct_indicators), y_pred)
             if self.progress_bar:
-                progress_task = progress.add_task("- [black]Optimizing threshold with grid search...", total=len(threshold_values))
-            for i, y_pred in enumerate(y_pred_matrix.T):
-                values[i] = -threshold_tuning_objective(np.array(correct_indicators), y_pred)
-                if self.progress_bar:
-                    progress.update(progress_task, advance=1)
-            time.sleep(0.1)
-        values = -np.array([threshold_tuning_objective(np.array(correct_indicators), y_pred) for y_pred in y_pred_matrix.T])
+                self.progress_bar.update(progress_task, advance=1)
+        time.sleep(0.1)
 
         best_index = np.argmin(values)
         best_threshold = threshold_values[best_index]
         return best_threshold
 
-    def tune_params(self, score_lists: List[List[float]], correct_indicators: List[bool], weights_objective: str = "roc_auc", thresh_objective: str = "fbeta_score", thresh_bounds: Tuple[float, float] = (0, 1), n_trials: int = 100, step_size: float = 0.01, fscore_beta: float = 1, progress_bar: bool = False) -> Dict[str, Any]:
+    def tune_params(self, score_lists: List[List[float]], correct_indicators: List[bool], weights_objective: str = "roc_auc", thresh_objective: str = "fbeta_score", thresh_bounds: Tuple[float, float] = (0, 1), n_trials: int = 100, step_size: float = 0.01, fscore_beta: float = 1, progress_bar: Optional[Progress] = None) -> Dict[str, Any]:
         """
         Tunes weights and threshold parameters on a set of user-provided graded responses.
 
@@ -117,8 +117,8 @@ class Tuner:
         fscore_beta : float, default=1
             Value of beta in fbeta_score.
 
-        progress_bar : bool, default=False
-            If True, displays a progress bar during optimization routine
+        progress_bar : rich.progress.Progress, default=None
+            If provided, displays a progress bar while scoring responses
 
         Returns
         -------
@@ -150,17 +150,17 @@ class Tuner:
         if self.optimize_jointly:
             if self.k > 2:
                 study = optuna.create_study()
-                with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), TimeElapsedColumn()) as progress:
+
+                if self.progress_bar:
+                    progress_task = self.progress_bar.add_task("  - [black]Optimizing weights...", total=self.n_trials)
+
+                def callback(study, trial):
                     if self.progress_bar:
-                        progress_task = progress.add_task("- [black]Optimizing weights...", total=self.n_trials)
+                        self.progress_bar.update(progress_task, advance=1)
 
-                    def callback(study, trial):
-                        if self.progress_bar:
-                            progress.update(progress_task, advance=1)
-
-                    study.optimize(self._optuna_objective, n_trials=self.n_trials, callbacks=[callback])
-                    params = tuple(study.best_params.values())
-                    best_weights = self._normalize_weights(params[:-1])
+                study.optimize(self._optuna_objective, n_trials=self.n_trials, callbacks=[callback])
+                params = tuple(study.best_params.values())
+                best_weights = self._normalize_weights(params[:-1])
                 time.sleep(0.1)
                 return tuple(best_weights) + (params[-1],)
             else:
@@ -170,18 +170,18 @@ class Tuner:
         else:
             if self.k > 3:
                 study = optuna.create_study()
-                with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), TimeElapsedColumn()) as progress:
+
+                if self.progress_bar:
+                    progress_task = self.progress_bar.add_task("  - [black]Optimizing weights...", total=self.n_trials)
+
+                def callback(study, trial):
                     if self.progress_bar:
-                        progress_task = progress.add_task("- [black]Optimizing weights...", total=self.n_trials)
+                        self.progress_bar.update(progress_task, advance=1)
 
-                    def callback(study, trial):
-                        if self.progress_bar:
-                            progress.update(progress_task, advance=1)
-
-                    study.optimize(self._optuna_objective, n_trials=self.n_trials, callbacks=[callback])
-                    best_weights_raw = tuple(study.best_params.values())
-                    best_weights = self._normalize_weights(best_weights_raw)
-                    time.sleep(0.1)
+                study.optimize(self._optuna_objective, n_trials=self.n_trials, callbacks=[callback])
+                best_weights_raw = tuple(study.best_params.values())
+                best_weights = self._normalize_weights(best_weights_raw)
+                time.sleep(0.1)
             else:
                 best_weights = self._grid_search_weights()
 
@@ -256,20 +256,19 @@ class Tuner:
         weight_grid = np.linspace(0, 1, int(1 / self.step_size))
         threshold_grid = np.linspace(self.thresh_bounds[0] + self.step_size, self.thresh_bounds[1] - self.step_size, int((self.thresh_bounds[1] - self.thresh_bounds[0]) / (self.step_size) - 1))
         best_cost = np.inf
-        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), TimeElapsedColumn()) as progress:
-            if self.progress_bar:
-                progress_task = progress.add_task("- [black]Jointly optimizing weights and threshold using grid search...", total=len(weight_grid) * len(threshold_grid))
-            for w in weight_grid:
-                weights = np.array([w, 1 - w])
-                for thresh in threshold_grid:
-                    cost = self._evaluate_objective(y_true=self.correct_indicators, y_pred=self._update_scores(weights), thresh=thresh)
-                    if self.progress_bar:
-                        progress.update(progress_task, advance=1)
-                    if cost < best_cost:
-                        best_cost = cost
-                        best_weights = weights
-                        best_thresh = thresh
-            time.sleep(0.1)
+        if self.progress_bar:
+            progress_task = self.progress_bar.add_task("  - [black]Jointly optimizing weights and threshold using grid search...", total=len(weight_grid) * len(threshold_grid))
+        for w in weight_grid:
+            weights = np.array([w, 1 - w])
+            for thresh in threshold_grid:
+                cost = self._evaluate_objective(y_true=self.correct_indicators, y_pred=self._update_scores(weights), thresh=thresh)
+                if self.progress_bar:
+                    self.progress_bar.update(progress_task, advance=1)
+                if cost < best_cost:
+                    best_cost = cost
+                    best_weights = weights
+                    best_thresh = thresh
+        time.sleep(0.1)
         return tuple(best_weights) + (best_thresh,)
 
     def _grid_search_weights(self):
@@ -282,37 +281,35 @@ class Tuner:
         best_cost = np.inf
         if self.k == 2:
             w_grid = np.linspace(0, 1, int(1 / self.step_size))
-            with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), TimeElapsedColumn()) as progress:
+            if self.progress_bar:
+                progress_task = self.progress_bar.add_task("  - [black]Optimizing weights using grid search...", total=len(w_grid))
+            for w in w_grid:
+                weights = np.array([w, 1 - w])
+                cost = self._evaluate_objective(y_true=self.correct_indicators, y_pred=self._update_scores(weights))
                 if self.progress_bar:
-                    progress_task = progress.add_task("- [black]Optimizing weights using grid search...", total=len(w_grid))
-                for w in w_grid:
-                    weights = np.array([w, 1 - w])
-                    cost = self._evaluate_objective(y_true=self.correct_indicators, y_pred=self._update_scores(weights))
-                    if self.progress_bar:
-                        progress.update(progress_task, advance=1)
-                    if cost < best_cost:
-                        best_cost = cost
-                        best_weights = weights
-                time.sleep(0.1)
+                    self.progress_bar.update(progress_task, advance=1)
+                if cost < best_cost:
+                    best_cost = cost
+                    best_weights = weights
+            time.sleep(0.1)
         elif self.k == 3:
             w1_grid = np.linspace(0, 1, int(1 / self.step_size))
             w2_grid = np.linspace(0, 1, int(1 / self.step_size))
-            with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), TimeElapsedColumn()) as progress:
-                if self.progress_bar:
-                    progress_task = progress.add_task("- [black]Optimizing weights using grid search...", total=len(w1_grid) * len(w2_grid))
-                for w1 in w1_grid:
-                    for w2 in w2_grid:
-                        if self.progress_bar:
-                            progress.update(progress_task, advance=1)
-                        w3 = 1 - w1 - w2
-                        if w3 < 0:  # infeasible, skip
-                            continue
-                        weights = np.array([w1, w2, w3])
-                        cost = self._evaluate_objective(y_true=self.correct_indicators, y_pred=self._update_scores(weights))
-                        if cost < best_cost:
-                            best_cost = cost
-                            best_weights = weights
-                time.sleep(0.1)
+            if self.progress_bar:
+                progress_task = self.progress_bar.add_task("  - [black]Optimizing weights using grid search...", total=len(w1_grid) * len(w2_grid))
+            for w1 in w1_grid:
+                for w2 in w2_grid:
+                    if self.progress_bar:
+                        self.progress_bar.update(progress_task, advance=1)
+                    w3 = 1 - w1 - w2
+                    if w3 < 0:  # infeasible, skip
+                        continue
+                    weights = np.array([w1, w2, w3])
+                    cost = self._evaluate_objective(y_true=self.correct_indicators, y_pred=self._update_scores(weights))
+                    if cost < best_cost:
+                        best_cost = cost
+                        best_weights = weights
+            time.sleep(0.1)
         return tuple(best_weights)
 
     @staticmethod
