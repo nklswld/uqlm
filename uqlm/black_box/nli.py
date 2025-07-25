@@ -111,7 +111,7 @@ class NLIScorer(SimilarityScorer):
 
         best_response_selection : str, default="discrete"
             Specifies the type of entropy confidence score to compute best response. Must be one of "discrete" or "token-based".
-            
+
         progress_bar : rich.progress.Progress, default=None
             If provided, displays a progress bar while scoring responses
 

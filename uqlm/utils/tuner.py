@@ -72,10 +72,10 @@ class Tuner:
         y_scores_array = np.array(y_scores)
         y_pred_matrix = (y_scores_array[:, np.newaxis] > threshold_values).astype(int)
         values = np.zeros(len(threshold_values))
-        
+
         if self.progress_bar:
             progress_task = self.progress_bar.add_task("  - [black]Optimizing threshold with grid search...", total=len(threshold_values))
-            
+
         for i, y_pred in enumerate(y_pred_matrix.T):
             values[i] = -threshold_tuning_objective(np.array(correct_indicators), y_pred)
             if self.progress_bar:
@@ -150,9 +150,10 @@ class Tuner:
         if self.optimize_jointly:
             if self.k > 2:
                 study = optuna.create_study()
-                
+
                 if self.progress_bar:
                     progress_task = self.progress_bar.add_task("  - [black]Optimizing weights...", total=self.n_trials)
+
                 def callback(study, trial):
                     if self.progress_bar:
                         self.progress_bar.update(progress_task, advance=1)
@@ -169,9 +170,10 @@ class Tuner:
         else:
             if self.k > 3:
                 study = optuna.create_study()
-                
+
                 if self.progress_bar:
                     progress_task = self.progress_bar.add_task("  - [black]Optimizing weights...", total=self.n_trials)
+
                 def callback(study, trial):
                     if self.progress_bar:
                         self.progress_bar.update(progress_task, advance=1)

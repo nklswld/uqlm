@@ -15,11 +15,9 @@
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from typing import Any, List, Optional
-import rich
 
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
 from uqlm.black_box import BertScorer, CosineScorer, MatchScorer
-from uqlm.utils.display import ConditionalBarColumn, ConditionalTimeElapsedColumn, ConditionalTextColumn, ConditionalSpinnerColumn
 
 
 class BlackBoxUQ(UncertaintyQuantifier):
@@ -133,12 +131,12 @@ class BlackBoxUQ(UncertaintyQuantifier):
         """
         self.prompts = prompts
         self.num_responses = num_responses
-        
+
         self._construct_progress_bar(show_progress_bars)
         self._display_generation_header(show_progress_bars)
-            
+
         responses = await self.generate_original_responses(prompts=prompts, progress_bar=self.progress_bar)
-        sampled_responses = await self.generate_candidate_responses(prompts=prompts, progress_bar=self.progress_bar)   
+        sampled_responses = await self.generate_candidate_responses(prompts=prompts, progress_bar=self.progress_bar)
         result = self.score(responses=responses, sampled_responses=sampled_responses, show_progress_bars=show_progress_bars)
         return result
 
@@ -168,10 +166,10 @@ class BlackBoxUQ(UncertaintyQuantifier):
         self.sampled_responses = sampled_responses
         self.num_responses = len(sampled_responses[0])
         self.scores_dict = {k: [] for k in self.scorer_objects}
-        
+
         self._construct_progress_bar(show_progress_bars)
         self._display_scoring_header(show_progress_bars and _display_header)
-            
+
         if self.use_nli:
             compute_entropy = "semantic_negentropy" in self.scorers
             nli_scores = self.nli_scorer.evaluate(responses=self.responses, sampled_responses=self.sampled_responses, use_best=self.use_best, compute_entropy=compute_entropy, progress_bar=self.progress_bar)
@@ -191,9 +189,9 @@ class BlackBoxUQ(UncertaintyQuantifier):
             if scorer_key in self.scorer_objects:
                 self.scores_dict[scorer_key] = self.scorer_objects[scorer_key].evaluate(responses=self.responses, sampled_responses=self.sampled_responses, progress_bar=self.progress_bar)
         result = self._construct_result()
-        
+
         self._stop_progress_bar()
-        self.progress_bar = None # if re-run ensure the same progress object is not used
+        self.progress_bar = None  # if re-run ensure the same progress object is not used
         return result
 
     def _construct_result(self) -> Any:

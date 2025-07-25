@@ -66,7 +66,7 @@ class CosineScorer(SimilarityScorer):
             score = self._compute_score(response=responses[i], candidates=sampled_responses[i])
             results.append(score)
             if progress_bar:
-                    progress_bar.update(progress_task, advance=1)
+                progress_bar.update(progress_task, advance=1)
         time.sleep(0.1)
         return results
 

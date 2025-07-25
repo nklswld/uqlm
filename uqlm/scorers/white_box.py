@@ -16,7 +16,6 @@ from typing import Any, Dict, List, Optional
 import math
 import numpy as np
 from langchain_core.language_models.chat_models import BaseChatModel
-from rich import print as rprint
 
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
 
@@ -71,12 +70,12 @@ class WhiteBoxUQ(UncertaintyQuantifier):
 
         self._construct_progress_bar(show_progress_bars)
         self._display_generation_header(show_progress_bars, white_box=True)
-        
+
         responses = await self.generate_original_responses(prompts, progress_bar=self.progress_bar)
         result = self.score(prompts=prompts, responses=responses, logprobs_results=self.logprobs)
-        
+
         self._stop_progress_bar()
-        self.progress_bar = None # if re-run ensure the same progress object is not used
+        self.progress_bar = None  # if re-run ensure the same progress object is not used
         return result
 
     def score(self, logprobs_results: List[List[Dict[str, Any]]], prompts: Optional[List[str]] = None, responses: Optional[List[str]] = None) -> UQResult:

@@ -131,7 +131,7 @@ class LLMJudge(ResponseGenerator):
 
         retries : int, default=5
             Number of times to retry for failed score extraction
-            
+
         progress_bar : rich.progress.Progress, default=None
             If provided, displays a progress bar while scoring responses
 

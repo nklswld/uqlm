@@ -16,7 +16,6 @@
 import numpy as np
 from typing import List, Optional, Union
 from langchain_core.language_models.chat_models import BaseChatModel
-from rich import print as rprint
 
 from uqlm.judges.judge import LLMJudge
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
@@ -84,7 +83,7 @@ class LLMPanel(UncertaintyQuantifier):
         """
         self._construct_progress_bar(show_progress_bars)
         self._display_generation_header(show_progress_bars)
-        
+
         responses = await self.generate_original_responses(prompts, progress_bar=self.progress_bar)
         return await self.score(prompts=prompts, responses=responses, show_progress_bars=show_progress_bars)
 
@@ -112,10 +111,10 @@ class LLMPanel(UncertaintyQuantifier):
         self.prompts = prompts
         self.responses = responses
         data = {"prompts": prompts, "responses": responses}
-        
+
         self._construct_progress_bar(show_progress_bars)
         self._display_scoring_header(show_progress_bars and _display_header)
-            
+
         judge_count = 1
         scores_lists = []
         for judge in self.judges:
@@ -127,7 +126,7 @@ class LLMPanel(UncertaintyQuantifier):
         scores_dict = {"avg": [np.mean(scores) for scores in zip(*scores_lists)], "max": [np.max(scores) for scores in zip(*scores_lists)], "min": [np.min(scores) for scores in zip(*scores_lists)], "median": [np.median(scores) for scores in zip(*scores_lists)]}
         data.update(scores_dict)
         result = {"data": data, "metadata": {"num_judges": len(self.judges), "temperature": None if not self.llm else self.llm.temperature}}
-        
+
         self._stop_progress_bar()
-        self.progress_bar = None # if re-run ensure the same progress object is not used
+        self.progress_bar = None  # if re-run ensure the same progress object is not used
         return UQResult(result)
