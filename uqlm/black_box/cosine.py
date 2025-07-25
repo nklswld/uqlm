@@ -18,7 +18,7 @@ from typing import Any, List, Tuple, Optional
 import numpy as np
 from numpy.linalg import norm
 import time
-import rich
+from rich.progress import Progress
 
 from uqlm.black_box.baseclass.similarity_scorer import SimilarityScorer
 
@@ -39,7 +39,7 @@ class CosineScorer(SimilarityScorer):
         self.transformer = transformer
         self.model = SentenceTransformer(f"sentence-transformers/{transformer}")
 
-    def evaluate(self, responses: List[str], sampled_responses: List[List[str]], progress_bar: Optional[rich.progress.Progress] = None) -> List[float]:
+    def evaluate(self, responses: List[str], sampled_responses: List[List[str]], progress_bar: Optional[Progress] = None) -> List[float]:
         """
         This method computes model-based text similarity metrics values for the provided pairs of texts.
 

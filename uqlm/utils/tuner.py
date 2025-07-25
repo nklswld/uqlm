@@ -18,7 +18,7 @@ from numpy.typing import ArrayLike
 import optuna
 from typing import Any, Dict, List, Tuple, Optional
 import time
-import rich
+from rich.progress import Progress
 from sklearn.metrics import fbeta_score, balanced_accuracy_score, accuracy_score, roc_auc_score, log_loss, average_precision_score, brier_score_loss
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -31,7 +31,7 @@ class Tuner:
         """
         self.objective_to_func = {"fbeta_score": self._f_score, "accuracy_score": accuracy_score, "balanced_accuracy_score": balanced_accuracy_score, "log_loss": log_loss, "roc_auc": roc_auc_score, "average_precision": average_precision_score, "brier_score": brier_score_loss}
 
-    def tune_threshold(self, y_scores: List[float], correct_indicators: List[bool], thresh_objective: str = "fbeta_score", fscore_beta: float = 1, bounds: Tuple[float, float] = (0, 1), step_size: int = 0.01, progress_bar: Optional[rich.progress.Progress] = None) -> float:
+    def tune_threshold(self, y_scores: List[float], correct_indicators: List[bool], thresh_objective: str = "fbeta_score", fscore_beta: float = 1, bounds: Tuple[float, float] = (0, 1), step_size: int = 0.01, progress_bar: Optional[Progress] = None) -> float:
         """
         Conducts 1-dimensional grid search for threshold.
 
@@ -86,7 +86,7 @@ class Tuner:
         best_threshold = threshold_values[best_index]
         return best_threshold
 
-    def tune_params(self, score_lists: List[List[float]], correct_indicators: List[bool], weights_objective: str = "roc_auc", thresh_objective: str = "fbeta_score", thresh_bounds: Tuple[float, float] = (0, 1), n_trials: int = 100, step_size: float = 0.01, fscore_beta: float = 1, progress_bar: Optional[rich.progress.Progress] = None) -> Dict[str, Any]:
+    def tune_params(self, score_lists: List[List[float]], correct_indicators: List[bool], weights_objective: str = "roc_auc", thresh_objective: str = "fbeta_score", thresh_bounds: Tuple[float, float] = (0, 1), n_trials: int = 100, step_size: float = 0.01, fscore_beta: float = 1, progress_bar: Optional[Progress] = None) -> Dict[str, Any]:
         """
         Tunes weights and threshold parameters on a set of user-provided graded responses.
 

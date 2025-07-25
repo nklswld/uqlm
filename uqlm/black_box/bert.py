@@ -20,7 +20,7 @@ from typing import List, Optional
 from uqlm.black_box.baseclass.similarity_scorer import SimilarityScorer
 
 import time
-import rich
+from rich.progress import Progress
 
 
 class BertScorer(SimilarityScorer):
@@ -31,7 +31,7 @@ class BertScorer(SimilarityScorer):
         """
         pass
 
-    def evaluate(self, responses: List[str], sampled_responses: List[List[str]], progress_bar: Optional[rich.progress.Progress] = None) -> List[float]:
+    def evaluate(self, responses: List[str], sampled_responses: List[List[str]], progress_bar: Optional[Progress] = None) -> List[float]:
         """
         This method computes model-based text similarity metrics values for the provided pairs of texts.
 

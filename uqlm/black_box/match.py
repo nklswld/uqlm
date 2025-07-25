@@ -15,6 +15,7 @@
 
 import numpy as np
 from typing import List, Optional
+from rich.progress import Progress
 
 from uqlm.black_box.baseclass.similarity_scorer import SimilarityScorer
 
@@ -29,7 +30,7 @@ class MatchScorer(SimilarityScorer):
         """
         pass
 
-    def evaluate(self, responses: List[str], sampled_responses: List[List[str]], progress_bar: Optional[bool] = None) -> List[float]:
+    def evaluate(self, responses: List[str], sampled_responses: List[List[str]], progress_bar: Optional[Progress] = None) -> List[float]:
         """
         This method computes exact match rates for the provided pairs of texts.
 
