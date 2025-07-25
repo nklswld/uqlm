@@ -17,7 +17,7 @@ import itertools
 import time
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
-import rich
+from rich.progress import Progress
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages.human import HumanMessage
 from langchain_core.messages.system import SystemMessage
@@ -48,7 +48,7 @@ class ResponseGenerator:
         self.progress_task = None
         self.is_judge = False
 
-    async def generate_responses(self, prompts: List[str], system_prompt: str = "You are a helpful assistant.", count: int = 1, progress_bar: Optional[rich.progress.Progress] = None) -> Dict[str, Any]:
+    async def generate_responses(self, prompts: List[str], system_prompt: str = "You are a helpful assistant.", count: int = 1, progress_bar: Optional[Progress] = None) -> Dict[str, Any]:
         """
         Generates evaluation dataset from a provided set of prompts. For each prompt,
         `self.count` responses are generated.

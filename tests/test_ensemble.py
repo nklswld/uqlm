@@ -134,7 +134,7 @@ async def test_ensemble(monkeypatch, mock_llm):
     monkeypatch.setattr(uqe, "generate_candidate_responses", mock_generate_candidate_responses)
     monkeypatch.setattr(uqe.judges_object, "score", mock_judge_scores)
 
-    for show_progress_bars in [True, False]:    
+    for show_progress_bars in [True, False]:
         result = await uqe.tune(prompts=PROMPTS, ground_truth_answers=PROMPTS, show_progress_bars=show_progress_bars)
         assert result.metadata["weights"] == tune_results["weights"]
         assert result.metadata["thresh"] == tune_results["thresh"]

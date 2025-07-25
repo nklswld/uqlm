@@ -20,7 +20,7 @@ from collections import deque, Counter
 from typing import Any, Dict, List, Optional
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import time
-import rich
+from rich.progress import Progress
 from uqlm.black_box.baseclass.similarity_scorer import SimilarityScorer
 
 
@@ -84,7 +84,7 @@ class NLIScorer(SimilarityScorer):
         probabilites = np.exp(np_logits) / np.exp(np_logits).sum(axis=-1, keepdims=True)
         return probabilites
 
-    def evaluate(self, responses: List[str], sampled_responses: List[List[str]], responses_logprobs: List[List[Dict[str, Any]]] = None, sampled_responses_logprobs: List[List[List[Dict[str, Any]]]] = None, use_best: bool = False, compute_entropy: bool = False, best_response_selection: str = "discrete", progress_bar: Optional[rich.progress.Progress] = None) -> Dict[str, Any]:
+    def evaluate(self, responses: List[str], sampled_responses: List[List[str]], responses_logprobs: List[List[Dict[str, Any]]] = None, sampled_responses_logprobs: List[List[List[Dict[str, Any]]]] = None, use_best: bool = False, compute_entropy: bool = False, best_response_selection: str = "discrete", progress_bar: Optional[Progress] = None) -> Dict[str, Any]:
         """
         Evaluate confidence scores on LLM responses.
 

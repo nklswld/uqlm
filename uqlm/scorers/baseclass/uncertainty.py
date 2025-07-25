@@ -17,7 +17,6 @@ import io
 import contextlib
 import pandas as pd
 from typing import Any, Dict, List, Optional
-import rich
 from rich.progress import Progress, TextColumn
 
 from uqlm.utils.response_generator import ResponseGenerator
@@ -73,7 +72,7 @@ class UncertaintyQuantifier:
         self.default_black_box_names = DEFAULT_BLACK_BOX_SCORERS
         self.progress_bar = None
 
-    async def generate_original_responses(self, prompts: List[str], progress_bar: Optional[rich.progress.Progress] = None) -> List[str]:
+    async def generate_original_responses(self, prompts: List[str], progress_bar: Optional[Progress] = None) -> List[str]:
         """
         This method generates original responses for uncertainty
         estimation. If specified in the child class, all responses are postprocessed
@@ -86,7 +85,7 @@ class UncertaintyQuantifier:
             responses = [self.postprocessor(r) for r in responses]
         return responses
 
-    async def generate_candidate_responses(self, prompts: List[str], progress_bar: Optional[rich.progress.Progress] = None) -> List[List[str]]:
+    async def generate_candidate_responses(self, prompts: List[str], progress_bar: Optional[Progress] = None) -> List[List[str]]:
         """
         This method generates multiple responses for uncertainty
         estimation. If specified in the child class, all responses are postprocessed
@@ -105,7 +104,7 @@ class UncertaintyQuantifier:
         self.llm.temperature = llm_temperature
         return sampled_responses
 
-    async def _generate_responses(self, prompts: List[str], count: int, temperature: float = None, progress_bar: Optional[rich.progress.Progress] = None) -> List[str]:
+    async def _generate_responses(self, prompts: List[str], count: int, temperature: float = None, progress_bar: Optional[Progress] = None) -> List[str]:
         """Helper function to generate responses with LLM"""
         if self.llm is None:
             raise ValueError("""llm must be provided to generate responses.""")
