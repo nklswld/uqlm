@@ -20,7 +20,7 @@ from collections import deque, Counter
 from typing import Any, Dict, List, Optional
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import time
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+import rich
 from uqlm.black_box.baseclass.similarity_scorer import SimilarityScorer
 
 
@@ -84,7 +84,7 @@ class NLIScorer(SimilarityScorer):
         probabilites = np.exp(np_logits) / np.exp(np_logits).sum(axis=-1, keepdims=True)
         return probabilites
 
-    def evaluate(self, responses: List[str], sampled_responses: List[List[str]], responses_logprobs: List[List[Dict[str, Any]]] = None, sampled_responses_logprobs: List[List[List[Dict[str, Any]]]] = None, use_best: bool = False, compute_entropy: bool = False, best_response_selection: str = "discrete", progress_bar: Optional[bool] = True) -> Dict[str, Any]:
+    def evaluate(self, responses: List[str], sampled_responses: List[List[str]], responses_logprobs: List[List[Dict[str, Any]]] = None, sampled_responses_logprobs: List[List[List[Dict[str, Any]]]] = None, use_best: bool = False, compute_entropy: bool = False, best_response_selection: str = "discrete", progress_bar: Optional[rich.progress.Progress] = None) -> Dict[str, Any]:
         """
         Evaluate confidence scores on LLM responses.
 
@@ -109,11 +109,11 @@ class NLIScorer(SimilarityScorer):
         compute_entropy : bool, default=False
             Specifies whether to include semantic entropy in returned result
 
-        progress_bar : bool, default=True
-            If True, displays a progress bar while scoring responses
-
         best_response_selection : str, default="discrete"
             Specifies the type of entropy confidence score to compute best response. Must be one of "discrete" or "token-based".
+            
+        progress_bar : rich.progress.Progress, default=None
+            If provided, displays a progress bar while scoring responses
 
         Returns
         -------
@@ -134,15 +134,12 @@ class NLIScorer(SimilarityScorer):
             sampled_responses[i] = oc_result_i["candidates"]  # Replace with updated candidates if use_best
 
         if progress_bar:
-            with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.completed}/{task.total}"), TimeElapsedColumn()) as progress:
-                task = progress.add_task("- [black]Scoring responses with NLI...", total=len(responses))
-                for i, response in enumerate(responses):
-                    _process_i(i, response)
-                    progress.update(task, advance=1)
-                time.sleep(0.1)
-        else:
-            for i, response in enumerate(responses):
-                _process_i(i, response)
+            progress_task = progress_bar.add_task("  - [black]Scoring responses with NLI...", total=len(responses))
+        for i, response in enumerate(responses):
+            _process_i(i, response)
+            if progress_bar:
+                progress_bar.update(progress_task, advance=1)
+        time.sleep(0.1)
 
         if use_best:
             observed_consistency_data["responses"] = responses
