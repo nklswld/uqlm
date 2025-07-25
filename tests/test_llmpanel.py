@@ -65,14 +65,15 @@ async def test_llmpanel(monkeypatch, quantifier):
         monkeypatch.setattr(judge, "judge_responses", mock_judge_responses)
 
     # Call generate_and_score method to compute scores
-    result = await quantifier.generate_and_score(prompts=PROMPTS)
+    for show_progress_bars in [True, False]:
+        result = await quantifier.generate_and_score(prompts=PROMPTS, show_progress_bars=show_progress_bars)
 
-    expected_data = {"prompts": PROMPTS, "responses": MOCKED_RESPONSES, "judge_1": SCORES["judge_1"], "judge_2": SCORES["judge_2"], "avg": SCORES["avg"], "max": SCORES["max"], "min": SCORES["min"], "median": SCORES["median"]}
+        expected_data = {"prompts": PROMPTS, "responses": MOCKED_RESPONSES, "judge_1": SCORES["judge_1"], "judge_2": SCORES["judge_2"], "avg": SCORES["avg"], "max": SCORES["max"], "min": SCORES["min"], "median": SCORES["median"]}
 
-    expected_result = {"data": expected_data, "metadata": METADATA}
+        expected_result = {"data": expected_data, "metadata": METADATA}
 
-    assert result.data == expected_result["data"]
-    assert result.metadata == expected_result["metadata"]
+        assert result.data == expected_result["data"]
+        assert result.metadata == expected_result["metadata"]
 
 
 def test_scoring_templates_length_validation():
