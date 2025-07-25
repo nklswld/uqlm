@@ -107,19 +107,20 @@ async def test_ensemble(monkeypatch, mock_llm):
     monkeypatch.setattr(uqe, "generate_candidate_responses", mock_generate_candidate_responses)
     monkeypatch.setattr(uqe.judges_object, "score", mock_judge_scores)
 
-    results = await uqe.generate_and_score(prompts=PROMPTS, num_responses=5)
+    for show_progress_bars in [True, False]:
+        results = await uqe.generate_and_score(prompts=PROMPTS, num_responses=5, show_progress_bars=show_progress_bars)
 
-    assert all([results.data["ensemble_scores"][i] == pytest.approx(data["ensemble_scores"][i]) for i in range(len(PROMPTS))])
+        assert all([results.data["ensemble_scores"][i] == pytest.approx(data["ensemble_scores"][i]) for i in range(len(PROMPTS))])
 
-    assert all([results.data["min_probability"][i] == pytest.approx(data["min_probability"][i]) for i in range(len(PROMPTS))])
+        assert all([results.data["min_probability"][i] == pytest.approx(data["min_probability"][i]) for i in range(len(PROMPTS))])
 
-    assert all([results.data["exact_match"][i] == pytest.approx(data["exact_match"][i]) for i in range(len(PROMPTS))])
+        assert all([results.data["exact_match"][i] == pytest.approx(data["exact_match"][i]) for i in range(len(PROMPTS))])
 
-    assert all([results.data["noncontradiction"][i] == pytest.approx(data["noncontradiction"][i]) for i in range(len(PROMPTS))])
+        assert all([results.data["noncontradiction"][i] == pytest.approx(data["noncontradiction"][i]) for i in range(len(PROMPTS))])
 
-    assert all([results.data["judge_1"][i] == pytest.approx(data["judge_1"][i], abs=1e-5) for i in range(len(PROMPTS))])
+        assert all([results.data["judge_1"][i] == pytest.approx(data["judge_1"][i], abs=1e-5) for i in range(len(PROMPTS))])
 
-    assert results.metadata == metadata
+        assert results.metadata == metadata
 
     tune_results = {"weights": [0.5, 0.2, 0.3], "thresh": 0.75}
 
@@ -133,9 +134,10 @@ async def test_ensemble(monkeypatch, mock_llm):
     monkeypatch.setattr(uqe, "generate_candidate_responses", mock_generate_candidate_responses)
     monkeypatch.setattr(uqe.judges_object, "score", mock_judge_scores)
 
-    result = await uqe.tune(prompts=PROMPTS, ground_truth_answers=PROMPTS)
-    assert result.metadata["weights"] == tune_results["weights"]
-    assert result.metadata["thresh"] == tune_results["thresh"]
+    for show_progress_bars in [True, False]:    
+        result = await uqe.tune(prompts=PROMPTS, ground_truth_answers=PROMPTS, show_progress_bars=show_progress_bars)
+        assert result.metadata["weights"] == tune_results["weights"]
+        assert result.metadata["thresh"] == tune_results["thresh"]
 
     result = await uqe.tune(prompts=PROMPTS, ground_truth_answers=[PROMPTS[0]] + [" "] * len(PROMPTS[:-1]), grader_function=lambda response, answer: response == answer)
     assert result.metadata["thresh"] == tune_results["thresh"]
