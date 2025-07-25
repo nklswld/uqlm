@@ -19,7 +19,6 @@ from typing import List, Optional
 from uqlm.black_box.baseclass.similarity_scorer import SimilarityScorer
 
 import time
-import rich
 
 
 class MatchScorer(SimilarityScorer):

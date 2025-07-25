@@ -141,7 +141,7 @@ class ResponseGenerator:
                 self.progress_task = self.progress_bar.add_task(f"  - {'Scoring responses with LLM-as-a-Judge' if self.is_judge else 'Generating responses'}...", total=len(prompts))
             else:
                 self.progress_task = self.progress_bar.add_task(f"  - Generating candidate responses ({self.count} per prompt)...", total=len(prompts) * self.count)
-                
+
         for batch_idx, prompt_batch in enumerate(prompts_partition):
             if batch_idx == len(prompts_partition) - 1:
                 check_batch_time = False

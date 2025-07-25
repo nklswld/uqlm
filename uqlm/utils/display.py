@@ -18,29 +18,32 @@ from rich.progress import SpinnerColumn, BarColumn, TextColumn, TimeElapsedColum
 HEADERS = ["🤖 Generation", "📈 Scoring", "⚙️ Optimization", "🤖📈 Generation & Scoring", "", "  - [black]Grading responses against provided ground truth answers with default grader..."]
 OPTIMIZATION_TASKS = ["  - [black]Optimizing weights...", "  - [black]Jointly optimizing weights and threshold using grid search...", "  - [black]Optimizing weights using grid search...", "  - [black]Optimizing threshold with grid search..."]
 
+
 class ConditionalBarColumn(BarColumn):
     def render(self, task):
         if task.description in HEADERS:
             return ""
         return super().render(task)
-    
+
+
 class ConditionalTimeElapsedColumn(TimeElapsedColumn):
     def render(self, task):
         if task.description in HEADERS:
             return ""
         return super().render(task)
-    
+
+
 class ConditionalTextColumn(TextColumn):
     def render(self, task):
         if task.description in HEADERS:
             return ""
         elif task.description in OPTIMIZATION_TASKS:
-            percent = (task.completed / task.total) * 100
             return f"[progress.percentage]{task.percentage:>3.0f}%"
         return super().render(task)
-    
+
+
 class ConditionalSpinnerColumn(SpinnerColumn):
     def render(self, task):
         if task.description in HEADERS:
-            return "" 
+            return ""
         return super().render(task)
