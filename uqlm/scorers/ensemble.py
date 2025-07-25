@@ -12,11 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import json
 import inspect
-import numpy as np
-from langchain_core.language_models.chat_models import BaseChatModel
 from typing import Any, Dict, List, Optional, Union, Tuple
+import numpy as np
+import pandas as pd
+import time
+from langchain_core.language_models.chat_models import BaseChatModel
+import rich
+from rich import print as rprint
 
 from uqlm.judges.judge import LLMJudge
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
@@ -24,6 +28,7 @@ from uqlm.scorers.panel import LLMPanel
 from uqlm.scorers.black_box import BlackBoxUQ
 from uqlm.scorers.white_box import WhiteBoxUQ
 from uqlm.utils.tuner import Tuner
+from uqlm.utils.llm_config import save_llm_config, load_llm_config
 
 
 class UQEnsemble(UncertaintyQuantifier):
@@ -53,7 +58,7 @@ class UQEnsemble(UncertaintyQuantifier):
             A langchain llm `BaseChatModel`. User is responsible for specifying temperature and other
             relevant parameters to the constructor of their `llm` object.
 
-        scorers : List containing instances of BaseChatModel, LLMJudge, black-box scorer names from ['semantic_negentropy', 'noncontradiction','exact_match', 'bert_score', 'bleurt', 'cosine_sim'], or white-box scorer names from ["normalized_probability", "min_probability"] default=None
+        scorers : List containing instances of BaseChatModel, LLMJudge, black-box scorer names from ['semantic_negentropy', 'noncontradiction','exact_match', 'bert_score', 'cosine_sim'], or white-box scorer names from ["normalized_probability", "min_probability"] default=None
             Specifies which UQ components to include. If None, defaults to the off-the-shelf BS Detector ensemble by
             Chen and Mueller (2023) :footcite:`chen2023quantifyinguncertaintyanswerslanguage` which uses components
             ["noncontradiction", "exact_match","self_reflection"] with respective weights of [0.56, 0.14, 0.3]
@@ -113,7 +118,7 @@ class UQEnsemble(UncertaintyQuantifier):
         self._validate_components(scorers)
         self._validate_weights()
 
-    async def generate_and_score(self, prompts: List[str], num_responses: int = 5):
+    async def generate_and_score(self, prompts: List[str], num_responses: int = 5, show_progress_bars: Optional[bool] = True, _existing_progress_bar: Optional[rich.progress.Progress] = None) -> UQResult:
         """
         Generate LLM responses from provided prompts and compute confidence scores.
 
@@ -125,11 +130,14 @@ class UQEnsemble(UncertaintyQuantifier):
         num_responses : int, default=5
             The number of sampled responses used to compute consistency.
 
+        show_progress_bars : bool, default=True
+            If True, displays progress bars while generating and scoring responses.
+            Not displayed for white box scorers due to low latency.
+
         Returns
         -------
         UQResult
-            Instance of UQResult, containing data (prompts, responses, and semantic entropy scores) and
-            metadata
+            Instance of UQResult, containing data (prompts, responses, and scores) and metadata
         """
         self.num_responses = num_responses
         if self.white_box_components:
@@ -138,15 +146,21 @@ class UQEnsemble(UncertaintyQuantifier):
             """
             self.llm.logprobs = True
 
-        responses = await self.generate_original_responses(prompts)
+        self._construct_progress_bar(show_progress_bars, _existing_progress_bar=_existing_progress_bar)
+        self._display_generation_header(show_progress_bars)
+
+        responses = await self.generate_original_responses(prompts, progress_bar=self.progress_bar)
         if self.black_box_components:
-            sampled_responses = await self.generate_candidate_responses(prompts)
+            sampled_responses = await self.generate_candidate_responses(prompts, progress_bar=self.progress_bar)
         else:
             sampled_responses = None
 
-        return await self.score(prompts=prompts, responses=responses, sampled_responses=sampled_responses, logprobs_results=self.logprobs)
+        result = await self.score(prompts=prompts, responses=responses, sampled_responses=sampled_responses, logprobs_results=self.logprobs, show_progress_bars=show_progress_bars, _existing_progress_bar=_existing_progress_bar)
 
-    async def score(self, prompts: List[str], responses: List[str], sampled_responses: Optional[List[List[str]]] = None, logprobs_results: Optional[List[List[Dict[str, Any]]]] = None, num_responses: int = 5):
+        self._stop_progress_bar(_existing_progress_bar)  # if re-run ensure the same progress object is not used
+        return result
+
+    async def score(self, prompts: List[str], responses: List[str], sampled_responses: Optional[List[List[str]]] = None, logprobs_results: Optional[List[List[Dict[str, Any]]]] = None, num_responses: int = 5, show_progress_bars: Optional[bool] = True, _existing_progress_bar: Optional[rich.progress.Progress] = None) -> UQResult:
         """
         Generate LLM responses from provided prompts and compute confidence scores.
 
@@ -168,6 +182,9 @@ class UQEnsemble(UncertaintyQuantifier):
         num_responses : int, default=5
             The number of sampled responses used to compute consistency. Not value will not be used if sampled_responses is provided
 
+        show_progress_bars : bool, default=True
+            If True, displays a progress bar while scoring responses
+
         Returns
         -------
         UQResult
@@ -179,6 +196,9 @@ class UQEnsemble(UncertaintyQuantifier):
         if self.white_box_components and not logprobs_results:
             raise ValueError("logprobs_results must be provided if using white-box scorers")
 
+        self._construct_progress_bar(show_progress_bars, _existing_progress_bar=_existing_progress_bar)
+        self._display_scoring_header(show_progress_bars)
+
         self.prompts = prompts
         self.responses = responses
         self.sampled_responses = sampled_responses
@@ -188,7 +208,8 @@ class UQEnsemble(UncertaintyQuantifier):
             self.multiple_logprobs = [[None] * self.num_responses] * len(prompts)
 
         if self.black_box_components:
-            black_box_results = self.black_box_object.score(responses=self.responses, sampled_responses=self.sampled_responses)
+            self.black_box_object.progress_bar = self.progress_bar
+            black_box_results = self.black_box_object.score(responses=self.responses, sampled_responses=self.sampled_responses, show_progress_bars=show_progress_bars, _display_header=False)
             if self.use_best:
                 self._update_best(black_box_results.data["responses"])
 
@@ -196,7 +217,9 @@ class UQEnsemble(UncertaintyQuantifier):
             white_box_results = self.white_box_object.score(logprobs_results=self.logprobs)
 
         if self.judges:
-            judge_results = await self.judges_object.score(prompts=prompts, responses=self.responses)
+            self._start_progress_bar()
+            self.judges_object.progress_bar = self.progress_bar
+            judge_results = await self.judges_object.score(prompts=prompts, responses=self.responses, show_progress_bars=show_progress_bars, _display_header=False)
         self.component_scores = {k: [] for k in self.component_names}
 
         for i, component in enumerate(self.component_scores):
@@ -207,9 +230,11 @@ class UQEnsemble(UncertaintyQuantifier):
             elif i in self.judges_indices:
                 self.component_scores[component] = judge_results.data[component]
 
+        self._stop_progress_bar(_existing_progress_bar)  # if re-run ensure the same progress object is not used
+
         return self._construct_result()
 
-    def tune_from_graded(self, correct_indicators: List[bool], weights_objective: str = "roc_auc", thresh_bounds: Tuple[float, float] = (0, 1), thresh_objective: str = "fbeta_score", n_trials: int = 100, step_size: float = 0.01, fscore_beta: float = 1) -> UQResult:
+    def tune_from_graded(self, correct_indicators: List[bool], weights_objective: str = "roc_auc", thresh_bounds: Tuple[float, float] = (0, 1), thresh_objective: str = "fbeta_score", n_trials: int = 100, step_size: float = 0.01, fscore_beta: float = 1, show_progress_bars: Optional[bool] = True) -> UQResult:
         """
         Tunes weights and threshold parameters on a set of user-provided graded responses.
 
@@ -237,6 +262,9 @@ class UQEnsemble(UncertaintyQuantifier):
         fscore_beta : float, default=1
             Value of beta in fbeta_score
 
+        show_progress_bars : bool, default=True
+            If True, displays a progress bar while optimizing weights and threshold
+
         Returns
         -------
         UQResult
@@ -245,12 +273,14 @@ class UQEnsemble(UncertaintyQuantifier):
         evaluate method must be run prior to running tune_params method
         """
         score_lists = list(self.component_scores.values())
-        optimal_params = self.tuner.tune_params(score_lists=score_lists, correct_indicators=correct_indicators, weights_objective=weights_objective, thresh_bounds=thresh_bounds, thresh_objective=thresh_objective, n_trials=n_trials, step_size=step_size, fscore_beta=fscore_beta)
+        optimal_params = self.tuner.tune_params(score_lists=score_lists, correct_indicators=correct_indicators, weights_objective=weights_objective, thresh_bounds=thresh_bounds, thresh_objective=thresh_objective, n_trials=n_trials, step_size=step_size, fscore_beta=fscore_beta, progress_bar=self.progress_bar)
         self.weights = optimal_params["weights"]
         self.thresh = optimal_params["thresh"]
+        self._stop_progress_bar()
+        self.print_ensemble_weights()
         return self._construct_result()
 
-    async def tune(self, prompts: List[str], ground_truth_answers: List[str], grader_function: Optional[Any] = None, num_responses: int = 5, weights_objective: str = "roc_auc", thresh_bounds: Tuple[float, float] = (0, 1), thresh_objective: str = "fbeta_score", n_trials: int = 100, step_size: float = 0.01, fscore_beta: float = 1) -> UQResult:
+    async def tune(self, prompts: List[str], ground_truth_answers: List[str], grader_function: Optional[Any] = None, num_responses: int = 5, weights_objective: str = "roc_auc", thresh_bounds: Tuple[float, float] = (0, 1), thresh_objective: str = "fbeta_score", n_trials: int = 100, step_size: float = 0.01, fscore_beta: float = 1, show_progress_bars: Optional[bool] = True) -> UQResult:
         """
         Generate responses from provided prompts, grade responses with provided grader function, and tune ensemble weights.
 
@@ -288,23 +318,142 @@ class UQEnsemble(UncertaintyQuantifier):
         fscore_beta : float, default=1
             Value of beta in fbeta_score
 
+        show_progress_bars : bool, default=True
+            If True, displays a progress bar while while generating responses, scoring responses, and tuning weights/threshold
+
         Returns
         -------
         UQResult
         """
         self._validate_grader(grader_function)
-        await self.generate_and_score(prompts=prompts, num_responses=num_responses)
-        print("Grading responses with grader function...")
+        self._construct_progress_bar(show_progress_bars)
+        await self.generate_and_score(prompts=prompts, num_responses=num_responses, show_progress_bars=show_progress_bars, _existing_progress_bar=self.progress_bar)
+
+        self._start_progress_bar()
+        self._display_optimization_header(show_progress_bars)
+        correct_indicators = self._grade_responses(ground_truth_answers=ground_truth_answers, grader_function=grader_function)
+        tuned_result = self.tune_from_graded(correct_indicators=correct_indicators, weights_objective=weights_objective, thresh_bounds=thresh_bounds, thresh_objective=thresh_objective, n_trials=n_trials, step_size=step_size, fscore_beta=fscore_beta, show_progress_bars=show_progress_bars)
+        self._stop_progress_bar()
+        return tuned_result
+
+    def print_ensemble_weights(self):
+        """Prints ensemble weights in a pretty table format, sorted by weight in descending order"""
+        weights_df = pd.DataFrame({"Scorer": self.component_names, "Weight": self.weights})
+        weights_df = weights_df.sort_values(by="Weight", ascending=False)
+        weights_df["Weight"] = weights_df["Weight"].apply(lambda x: f"{x:.4f}")
+
+        rprint(" ")
+
+        title = "[bold]Optimized Ensemble Weights"
+        centered_title = title.center(50)  # Center the title
+        rprint(centered_title)
+        rprint("=" * 50)
+
+        header = f"{weights_df.columns[0]:<25}{weights_df.columns[1]:>15}"
+        rprint(header)
+        rprint("-" * 50)
+
+        for _, row in weights_df.iterrows():
+            rprint(f"{row['Scorer']:<25}{row['Weight']:>15}")
+        rprint("=" * 50)
+
+    def save_config(self, path: str) -> None:
+        """
+        Save minimal configuration: weights, threshold, components, and LLM configs.
+
+        Parameters
+        ----------
+        path : str
+            Path where to save the configuration file (should end with .json)
+        """
+
+        # Handle components and LLM scorers
+        serializable_components = []
+        llm_configs = {}
+        llm_count = 0
+
+        for component in self.components:
+            if isinstance(component, str):
+                serializable_components.append(component)
+            elif isinstance(component, (LLMJudge, BaseChatModel)):
+                llm_count += 1
+                llm_key = f"judge_{llm_count}"
+                serializable_components.append(llm_key)
+                llm_configs[llm_key] = save_llm_config(component)
+            else:
+                raise ValueError(f"Cannot serialize component: {component}")
+
+        # Save main LLM config if present
+        main_llm_config = None
+        if self.llm:
+            main_llm_config = save_llm_config(self.llm)
+
+        config = {"weights": self.weights, "thresh": self.thresh, "components": serializable_components, "llm_config": main_llm_config, "llm_scorers": llm_configs}
+
+        with open(path, "w") as f:
+            json.dump(config, f, indent=2)
+
+    @classmethod
+    def load_config(cls, path: str, llm: Optional[BaseChatModel] = None) -> "UQEnsemble":
+        """
+        Load configuration and create UQEnsemble instance.
+
+        Parameters
+        ----------
+        path : str
+            Path to the saved configuration file
+        llm : BaseChatModel, optional
+            LLM instance to use as main LLM. If None, uses saved config.
+
+        Returns
+        -------
+        UQEnsemble
+            New UQEnsemble instance with loaded configuration
+        """
+        with open(path, "r") as f:
+            config = json.load(f)
+
+        # Recreate main LLM
+        if llm is None and config.get("llm_config"):
+            llm = load_llm_config(config["llm_config"])
+
+        # Recreate component scorers
+        components = []
+        llm_scorers = config.get("llm_scorers", {})
+
+        for component in config["components"]:
+            if isinstance(component, str) and component.startswith("judge_"):
+                # This is an LLM scorer
+                if component in llm_scorers:
+                    llm_scorer = load_llm_config(llm_scorers[component])
+                    components.append(llm_scorer)
+                else:
+                    raise ValueError(f"Missing LLM config for {component}")
+            else:
+                # This is a named scorer
+                components.append(component)
+
+        return cls(llm=llm, scorers=components, weights=config["weights"], thresh=config["thresh"])
+
+    def _grade_responses(self, ground_truth_answers: List[str], grader_function: Any = None) -> List[Any]:
+        """Grade LLM responses against provided ground truth answers using provided grader function"""
         if grader_function:
-            correct_indicators = [grader_function(r, a) for r, a in zip(self.responses, ground_truth_answers)]
+            correct_indicators = []
+            if self.progress_bar:
+                progress_task = self.progress_bar.add_task("  - [black]Grading responses against provided ground truth answers...", total=len(ground_truth_answers))
+            for r, a in zip(self.responses, ground_truth_answers):
+                correct_indicators.append(grader_function(r, a))
+                if self.progress_bar:
+                    self.progress_bar.update(progress_task, advance=1)
+            time.sleep(0.1)
         else:
+            if self.progress_bar:
+                progress_task = self.progress_bar.add_task("  - [black]Grading responses against provided ground truth answers with default grader...", total=len(ground_truth_answers))
             self._construct_hhem()  # use vectara hhem if no grader is provided
             pairs = [(a, r) for a, r in zip(ground_truth_answers, self.responses)]
             halluc_scores = self.hhem.predict(pairs)
             correct_indicators = [(s > 0.5) * 1 for s in halluc_scores]
-
-        tuned_result = self.tune_from_graded(correct_indicators=correct_indicators, weights_objective=weights_objective, thresh_bounds=thresh_bounds, thresh_objective=thresh_objective, n_trials=n_trials, step_size=step_size, fscore_beta=fscore_beta)
-        return tuned_result
+        return correct_indicators
 
     def _construct_result(self) -> Any:
         """Constructs UQResult from dictionary"""
