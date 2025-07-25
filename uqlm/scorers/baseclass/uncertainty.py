@@ -17,9 +17,12 @@ import io
 import contextlib
 import pandas as pd
 from typing import Any, Dict, List, Optional
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+
 from uqlm.utils.response_generator import ResponseGenerator
 from uqlm.black_box.nli import NLIScorer
 from uqlm.judges.judge import LLMJudge
+from uqlm.utils.display import ConditionalBarColumn, ConditionalTimeElapsedColumn, ConditionalTextColumn, ConditionalSpinnerColumn
 
 DEFAULT_BLACK_BOX_SCORERS = ["semantic_negentropy", "noncontradiction", "exact_match", "cosine_sim"]
 
@@ -67,6 +70,7 @@ class UncertaintyQuantifier:
         self.black_box_names = BLACK_BOX_SCORERS
         self.white_box_names = WHITE_BOX_SCORERS
         self.default_black_box_names = DEFAULT_BLACK_BOX_SCORERS
+        self.progress_bar = None
 
     async def generate_original_responses(self, prompts: List[str], progress_bar: Optional[bool] = True) -> List[str]:
         """
@@ -145,6 +149,53 @@ class UncertaintyQuantifier:
             all_logprobs.remove(best_logprobs)
             self.logprobs[i] = best_logprobs
             self.multiple_logprobs[i] = all_logprobs
+            
+    def _construct_progress_bar(self, show_progress_bars: bool, style: str = 'count') -> None:
+        """Constructs and starts progress bar"""
+        if style == 'count':
+            completion_text = "[progress.percentage]{task.completed}/{task.total}"
+        elif style == 'percentage':
+            completion_text = "[progress.percentage]{task.percentage:>3.0f}%"
+        if show_progress_bars and not self.progress_bar:
+            self.progress_bar = Progress(ConditionalSpinnerColumn(), TextColumn("[progress.description]{task.description}"), ConditionalBarColumn(), ConditionalTextColumn(completion_text), ConditionalTimeElapsedColumn())
+            self.progress_bar.start()
+            
+    def _display_generation_header(self, show_progress_bars: bool, white_box: bool = False) -> None:
+        """Displays generation header"""
+        if show_progress_bars: 
+            self.progress_bar.start()
+            display_text = "🤖 Generation" if not white_box else "🤖📈 Generation & Scoring"
+            generation_header = self.progress_bar.add_task(display_text)
+        
+    def _display_scoring_header(self, show_progress_bars: bool) -> None:
+        """Displays scoring header"""
+        if show_progress_bars: 
+            self.progress_bar.start()
+            space_before_header = self.progress_bar.add_task("")
+            generation_header = self.progress_bar.add_task("📈 Scoring")
+        
+    def _display_optimization_header(self, show_progress_bars: bool) -> None:
+        """Displays optimization header"""
+        if show_progress_bars: 
+            self.progress_bar.start()
+            space_before_header = self.progress_bar.add_task("")
+            generation_header = self.progress_bar.add_task("⚙️ Optimization")
+            
+    def _display_grading_text(self, show_progress_bars: bool) -> None:
+        """Displays text in place of progress bar for default grader"""
+        if show_progress_bars:
+            display_text = "  - [black]Grading responses against provided ground truth answers..."
+            grading_task = self.progress_bar.add_task("display_text")        
+        
+    def _stop_progress_bar(self) -> None:
+        """Stop progress bar"""
+        if self.progress_bar:
+            self.progress_bar.stop()
+            
+    def _start_progress_bar(self) -> None:
+        """Start progress bar"""
+        if self.progress_bar:
+            self.progress_bar.start()
 
 
 class UQResult:

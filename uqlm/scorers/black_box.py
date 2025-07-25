@@ -15,10 +15,11 @@
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from typing import Any, List, Optional
-from rich import print as rprint
+import rich
 
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
 from uqlm.black_box import BertScorer, CosineScorer, MatchScorer
+from uqlm.utils.display import ConditionalBarColumn, ConditionalTimeElapsedColumn, ConditionalTextColumn, ConditionalSpinnerColumn
 
 
 class BlackBoxUQ(UncertaintyQuantifier):
@@ -110,7 +111,7 @@ class BlackBoxUQ(UncertaintyQuantifier):
         if self.use_nli:
             self._setup_nli(nli_model_name)
 
-    async def generate_and_score(self, prompts: List[str], num_responses: int = 5, progress_bar: Optional[bool] = True) -> UQResult:
+    async def generate_and_score(self, prompts: List[str], num_responses: int = 5, show_progress_bars: Optional[bool] = True) -> UQResult:
         """
         Generate LLM responses, sampled LLM (candidate) responses, and compute confidence scores with specified scorers for the provided prompts.
 
@@ -122,8 +123,8 @@ class BlackBoxUQ(UncertaintyQuantifier):
         num_responses : int, default=5
             The number of sampled responses used to compute consistency.
 
-        progress_bar : bool, default=True
-            If True, displays a progress bar while generating and scoring responses
+        show_progress_bars : bool, default=True
+            If True, displays progress bars while generating and scoring responses
 
         Returns
         -------
@@ -132,16 +133,16 @@ class BlackBoxUQ(UncertaintyQuantifier):
         """
         self.prompts = prompts
         self.num_responses = num_responses
-        self.progress_bar = progress_bar
-        if progress_bar:
-            rprint("🤖 Generation")
-        responses = await self.generate_original_responses(prompts=prompts, progress_bar=progress_bar)
-        sampled_responses = await self.generate_candidate_responses(prompts=prompts, progress_bar=progress_bar)
-        if progress_bar:
-            rprint("📈 Scoring")
-        return self.score(responses=responses, sampled_responses=sampled_responses, progress_bar=progress_bar)
+        
+        self._construct_progress_bar(show_progress_bars)
+        self._display_generation_header(show_progress_bars)
+            
+        responses = await self.generate_original_responses(prompts=prompts, progress_bar=self.progress_bar)
+        sampled_responses = await self.generate_candidate_responses(prompts=prompts, progress_bar=self.progress_bar)   
+        result = self.score(responses=responses, sampled_responses=sampled_responses, show_progress_bars=show_progress_bars)
+        return result
 
-    def score(self, responses: List[str], sampled_responses: List[List[str]], progress_bar: Optional[bool] = True) -> UQResult:
+    def score(self, responses: List[str], sampled_responses: List[List[str]], show_progress_bars: Optional[bool] = True, _display_header: bool = True) -> UQResult:
         """
         Compute confidence scores with specified scorers on provided LLM responses. Should only be used if responses and sampled responses
         are already generated. Otherwise, use `generate_and_score`.
@@ -155,21 +156,25 @@ class BlackBoxUQ(UncertaintyQuantifier):
             A list of lists of sampled LLM responses for each prompt. These will be used to compute consistency scores by comparing to
             the corresponding response from `responses`.
 
-        progress_bar : bool, default=True
+        show_progress_bars : bool, default=True
             If True, displays a progress bar while scoring responses
 
         Returns
         -------
         UQResult
-            UQResult containing data (prompts, responses, and scores) and metadata
+            UQResult containing data (responses and scores) and metadata
         """
         self.responses = responses
         self.sampled_responses = sampled_responses
         self.num_responses = len(sampled_responses[0])
         self.scores_dict = {k: [] for k in self.scorer_objects}
+        
+        self._construct_progress_bar(show_progress_bars)
+        self._display_scoring_header(show_progress_bars and _display_header)
+            
         if self.use_nli:
             compute_entropy = "semantic_negentropy" in self.scorers
-            nli_scores = self.nli_scorer.evaluate(responses=self.responses, sampled_responses=self.sampled_responses, use_best=self.use_best, compute_entropy=compute_entropy, progress_bar=progress_bar)
+            nli_scores = self.nli_scorer.evaluate(responses=self.responses, sampled_responses=self.sampled_responses, use_best=self.use_best, compute_entropy=compute_entropy, progress_bar=self.progress_bar)
             if self.use_best:
                 self.original_responses = self.responses.copy()
                 self.responses = nli_scores["responses"]
@@ -184,9 +189,11 @@ class BlackBoxUQ(UncertaintyQuantifier):
         # similarity scorers that follow the same pattern
         for scorer_key in ["exact_match", "bert_score", "cosine_sim"]:
             if scorer_key in self.scorer_objects:
-                self.scores_dict[scorer_key] = self.scorer_objects[scorer_key].evaluate(responses=self.responses, sampled_responses=self.sampled_responses, progress_bar=progress_bar)
-
-        return self._construct_result()
+                self.scores_dict[scorer_key] = self.scorer_objects[scorer_key].evaluate(responses=self.responses, sampled_responses=self.sampled_responses, progress_bar=self.progress_bar)
+        result = self._construct_result()
+        
+        self._stop_progress_bar()
+        return result
 
     def _construct_result(self) -> Any:
         """Constructs UQResult object"""
