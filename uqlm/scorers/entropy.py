@@ -183,4 +183,5 @@ class SemanticEntropy(UncertaintyQuantifier):
             result["data"]["tokenprob_confidence_scores"] = [1 - ne for ne in self.nli_scorer._normalize_entropy(tokenprob_semantic_entropy)]
             
         self._stop_progress_bar()
+        self.progress_bar = None # if re-run ensure the same progress object is not used
         return UQResult(result)

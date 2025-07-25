@@ -193,6 +193,7 @@ class BlackBoxUQ(UncertaintyQuantifier):
         result = self._construct_result()
         
         self._stop_progress_bar()
+        self.progress_bar = None # if re-run ensure the same progress object is not used
         return result
 
     def _construct_result(self) -> Any:
