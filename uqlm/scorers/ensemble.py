@@ -19,8 +19,8 @@ import numpy as np
 import pandas as pd
 import time
 from langchain_core.language_models.chat_models import BaseChatModel
+import rich
 from rich import print as rprint
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
 from uqlm.judges.judge import LLMJudge
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
@@ -118,7 +118,7 @@ class UQEnsemble(UncertaintyQuantifier):
         self._validate_components(scorers)
         self._validate_weights()
 
-    async def generate_and_score(self, prompts: List[str], num_responses: int = 5, progress_bar: Optional[bool] = True):
+    async def generate_and_score(self, prompts: List[str], num_responses: int = 5, show_progress_bars: Optional[bool] = True, _existing_progress_bar: Optional[rich.progress.Progress] = None) -> UQResult:
         """
         Generate LLM responses from provided prompts and compute confidence scores.
 
@@ -130,14 +130,14 @@ class UQEnsemble(UncertaintyQuantifier):
         num_responses : int, default=5
             The number of sampled responses used to compute consistency.
 
-        progress_bar : bool, default=True
-            If True, displays a progress bar while generating and scoring responses
+        show_progress_bars : bool, default=True
+            If True, displays progress bars while generating and scoring responses.
+            Not displayed for white box scorers due to low latency.
 
         Returns
         -------
         UQResult
-            Instance of UQResult, containing data (prompts, responses, and semantic entropy scores) and
-            metadata
+            Instance of UQResult, containing data (prompts, responses, and scores) and metadata
         """
         self.num_responses = num_responses
         if self.white_box_components:
@@ -145,17 +145,22 @@ class UQEnsemble(UncertaintyQuantifier):
             In order to use white-box components, BaseChatModel must have logprobs attribute
             """
             self.llm.logprobs = True
-        if progress_bar:
-            rprint("🤖 Generation")
-        responses = await self.generate_original_responses(prompts, progress_bar=progress_bar)
+
+        self._construct_progress_bar(show_progress_bars, _existing_progress_bar=_existing_progress_bar)
+        self._display_generation_header(show_progress_bars)
+
+        responses = await self.generate_original_responses(prompts, progress_bar=self.progress_bar)
         if self.black_box_components:
-            sampled_responses = await self.generate_candidate_responses(prompts, progress_bar=progress_bar)
+            sampled_responses = await self.generate_candidate_responses(prompts, progress_bar=self.progress_bar)
         else:
             sampled_responses = None
 
-        return await self.score(prompts=prompts, responses=responses, sampled_responses=sampled_responses, logprobs_results=self.logprobs, progress_bar=progress_bar)
+        result = await self.score(prompts=prompts, responses=responses, sampled_responses=sampled_responses, logprobs_results=self.logprobs, show_progress_bars=show_progress_bars, _existing_progress_bar=_existing_progress_bar)
 
-    async def score(self, prompts: List[str], responses: List[str], sampled_responses: Optional[List[List[str]]] = None, logprobs_results: Optional[List[List[Dict[str, Any]]]] = None, num_responses: int = 5, progress_bar: Optional[bool] = True):
+        self._stop_progress_bar(_existing_progress_bar)  # if re-run ensure the same progress object is not used
+        return result
+
+    async def score(self, prompts: List[str], responses: List[str], sampled_responses: Optional[List[List[str]]] = None, logprobs_results: Optional[List[List[Dict[str, Any]]]] = None, num_responses: int = 5, show_progress_bars: Optional[bool] = True, _existing_progress_bar: Optional[rich.progress.Progress] = None) -> UQResult:
         """
         Generate LLM responses from provided prompts and compute confidence scores.
 
@@ -177,7 +182,7 @@ class UQEnsemble(UncertaintyQuantifier):
         num_responses : int, default=5
             The number of sampled responses used to compute consistency. Not value will not be used if sampled_responses is provided
 
-        progress_bar : bool, default=True
+        show_progress_bars : bool, default=True
             If True, displays a progress bar while scoring responses
 
         Returns
@@ -191,6 +196,9 @@ class UQEnsemble(UncertaintyQuantifier):
         if self.white_box_components and not logprobs_results:
             raise ValueError("logprobs_results must be provided if using white-box scorers")
 
+        self._construct_progress_bar(show_progress_bars, _existing_progress_bar=_existing_progress_bar)
+        self._display_scoring_header(show_progress_bars)
+
         self.prompts = prompts
         self.responses = responses
         self.sampled_responses = sampled_responses
@@ -199,10 +207,9 @@ class UQEnsemble(UncertaintyQuantifier):
             self.logprobs = [None] * len(prompts)
             self.multiple_logprobs = [[None] * self.num_responses] * len(prompts)
 
-        if progress_bar:
-            rprint("📈 Scoring")
         if self.black_box_components:
-            black_box_results = self.black_box_object.score(responses=self.responses, sampled_responses=self.sampled_responses, progress_bar=progress_bar)
+            self.black_box_object.progress_bar = self.progress_bar
+            black_box_results = self.black_box_object.score(responses=self.responses, sampled_responses=self.sampled_responses, show_progress_bars=show_progress_bars, _display_header=False)
             if self.use_best:
                 self._update_best(black_box_results.data["responses"])
 
@@ -210,7 +217,9 @@ class UQEnsemble(UncertaintyQuantifier):
             white_box_results = self.white_box_object.score(logprobs_results=self.logprobs)
 
         if self.judges:
-            judge_results = await self.judges_object.score(prompts=prompts, responses=self.responses, progress_bar=progress_bar)
+            self._start_progress_bar()
+            self.judges_object.progress_bar = self.progress_bar
+            judge_results = await self.judges_object.score(prompts=prompts, responses=self.responses, show_progress_bars=show_progress_bars, _display_header=False)
         self.component_scores = {k: [] for k in self.component_names}
 
         for i, component in enumerate(self.component_scores):
@@ -221,9 +230,11 @@ class UQEnsemble(UncertaintyQuantifier):
             elif i in self.judges_indices:
                 self.component_scores[component] = judge_results.data[component]
 
+        self._stop_progress_bar(_existing_progress_bar)  # if re-run ensure the same progress object is not used
+
         return self._construct_result()
 
-    def tune_from_graded(self, correct_indicators: List[bool], weights_objective: str = "roc_auc", thresh_bounds: Tuple[float, float] = (0, 1), thresh_objective: str = "fbeta_score", n_trials: int = 100, step_size: float = 0.01, fscore_beta: float = 1, progress_bar: Optional[bool] = True) -> UQResult:
+    def tune_from_graded(self, correct_indicators: List[bool], weights_objective: str = "roc_auc", thresh_bounds: Tuple[float, float] = (0, 1), thresh_objective: str = "fbeta_score", n_trials: int = 100, step_size: float = 0.01, fscore_beta: float = 1, show_progress_bars: Optional[bool] = True) -> UQResult:
         """
         Tunes weights and threshold parameters on a set of user-provided graded responses.
 
@@ -251,6 +262,9 @@ class UQEnsemble(UncertaintyQuantifier):
         fscore_beta : float, default=1
             Value of beta in fbeta_score
 
+        show_progress_bars : bool, default=True
+            If True, displays a progress bar while optimizing weights and threshold
+
         Returns
         -------
         UQResult
@@ -259,14 +273,14 @@ class UQEnsemble(UncertaintyQuantifier):
         evaluate method must be run prior to running tune_params method
         """
         score_lists = list(self.component_scores.values())
-        optimal_params = self.tuner.tune_params(score_lists=score_lists, correct_indicators=correct_indicators, weights_objective=weights_objective, thresh_bounds=thresh_bounds, thresh_objective=thresh_objective, n_trials=n_trials, step_size=step_size, fscore_beta=fscore_beta, progress_bar=progress_bar)
+        optimal_params = self.tuner.tune_params(score_lists=score_lists, correct_indicators=correct_indicators, weights_objective=weights_objective, thresh_bounds=thresh_bounds, thresh_objective=thresh_objective, n_trials=n_trials, step_size=step_size, fscore_beta=fscore_beta, progress_bar=self.progress_bar)
         self.weights = optimal_params["weights"]
         self.thresh = optimal_params["thresh"]
-
+        self._stop_progress_bar()
         self.print_ensemble_weights()
         return self._construct_result()
 
-    async def tune(self, prompts: List[str], ground_truth_answers: List[str], grader_function: Optional[Any] = None, num_responses: int = 5, weights_objective: str = "roc_auc", thresh_bounds: Tuple[float, float] = (0, 1), thresh_objective: str = "fbeta_score", n_trials: int = 100, step_size: float = 0.01, fscore_beta: float = 1, progress_bar: Optional[bool] = True) -> UQResult:
+    async def tune(self, prompts: List[str], ground_truth_answers: List[str], grader_function: Optional[Any] = None, num_responses: int = 5, weights_objective: str = "roc_auc", thresh_bounds: Tuple[float, float] = (0, 1), thresh_objective: str = "fbeta_score", n_trials: int = 100, step_size: float = 0.01, fscore_beta: float = 1, show_progress_bars: Optional[bool] = True) -> UQResult:
         """
         Generate responses from provided prompts, grade responses with provided grader function, and tune ensemble weights.
 
@@ -304,20 +318,22 @@ class UQEnsemble(UncertaintyQuantifier):
         fscore_beta : float, default=1
             Value of beta in fbeta_score
 
-        progress_bar : bool, default=True
-            If True, displays a progress bar while while generating responses, scoring responses, and tuning weights
+        show_progress_bars : bool, default=True
+            If True, displays a progress bar while while generating responses, scoring responses, and tuning weights/threshold
 
         Returns
         -------
         UQResult
         """
         self._validate_grader(grader_function)
-        await self.generate_and_score(prompts=prompts, num_responses=num_responses, progress_bar=progress_bar)
+        self._construct_progress_bar(show_progress_bars)
+        await self.generate_and_score(prompts=prompts, num_responses=num_responses, show_progress_bars=show_progress_bars, _existing_progress_bar=self.progress_bar)
 
-        if progress_bar:
-            rprint("⚙️ Optimization")
-        correct_indicators = self._grade_responses(ground_truth_answers=ground_truth_answers, grader_function=grader_function, progress_bar=progress_bar)
-        tuned_result = self.tune_from_graded(correct_indicators=correct_indicators, weights_objective=weights_objective, thresh_bounds=thresh_bounds, thresh_objective=thresh_objective, n_trials=n_trials, step_size=step_size, fscore_beta=fscore_beta, progress_bar=progress_bar)
+        self._start_progress_bar()
+        self._display_optimization_header(show_progress_bars)
+        correct_indicators = self._grade_responses(ground_truth_answers=ground_truth_answers, grader_function=grader_function)
+        tuned_result = self.tune_from_graded(correct_indicators=correct_indicators, weights_objective=weights_objective, thresh_bounds=thresh_bounds, thresh_objective=thresh_objective, n_trials=n_trials, step_size=step_size, fscore_beta=fscore_beta, show_progress_bars=show_progress_bars)
+        self._stop_progress_bar()
         return tuned_result
 
     def print_ensemble_weights(self):
@@ -419,23 +435,22 @@ class UQEnsemble(UncertaintyQuantifier):
 
         return cls(llm=llm, scorers=components, weights=config["weights"], thresh=config["thresh"])
 
-    def _grade_responses(self, ground_truth_answers: List[str], grader_function: Any = None, progress_bar: bool = True) -> List[Any]:
+    def _grade_responses(self, ground_truth_answers: List[str], grader_function: Any = None) -> List[Any]:
         """Grade LLM responses against provided ground truth answers using provided grader function"""
         if grader_function:
             correct_indicators = []
-            with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.completed}/{task.total}"), TimeElapsedColumn()) as progress:
-                if progress_bar:
-                    progress_task = progress.add_task("- [black]Grading responses against provided ground truth answers...", total=len(ground_truth_answers))
-                for r, a in zip(self.responses, ground_truth_answers):
-                    correct_indicators.append(grader_function(r, a))
-                    if progress_bar:
-                        progress.update(progress_task, advance=1)
-                time.sleep(0.1)
+            if self.progress_bar:
+                progress_task = self.progress_bar.add_task("  - [black]Grading responses against provided ground truth answers...", total=len(ground_truth_answers))
+            for r, a in zip(self.responses, ground_truth_answers):
+                correct_indicators.append(grader_function(r, a))
+                if self.progress_bar:
+                    self.progress_bar.update(progress_task, advance=1)
+            time.sleep(0.1)
         else:
+            if self.progress_bar:
+                progress_task = self.progress_bar.add_task("  - [black]Grading responses against provided ground truth answers with default grader...", total=len(ground_truth_answers))
             self._construct_hhem()  # use vectara hhem if no grader is provided
             pairs = [(a, r) for a, r in zip(ground_truth_answers, self.responses)]
-            if progress_bar:
-                rprint("  - [black]Grading responses against provided ground truth answers...")
             halluc_scores = self.hhem.predict(pairs)
             correct_indicators = [(s > 0.5) * 1 for s in halluc_scores]
         return correct_indicators

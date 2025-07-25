@@ -16,7 +16,6 @@
 import numpy as np
 from typing import List, Optional, Union
 from langchain_core.language_models.chat_models import BaseChatModel
-from rich import print as rprint
 
 from uqlm.judges.judge import LLMJudge
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
@@ -65,7 +64,7 @@ class LLMPanel(UncertaintyQuantifier):
                 raise ValueError("judges must be a list containing instances of either LLMJudge or BaseChatModel")
             self.judges.append(judge)
 
-    async def generate_and_score(self, prompts: List[str], progress_bar: Optional[bool] = True) -> UQResult:
+    async def generate_and_score(self, prompts: List[str], show_progress_bars: Optional[bool] = True) -> UQResult:
         """
         Generate LLM responses to provided prompts and use panel of judges to score responses for correctness.
 
@@ -74,7 +73,7 @@ class LLMPanel(UncertaintyQuantifier):
         prompts : list of str
             A list of input prompts for the model.
 
-        progress_bar : bool, default=True
+        show_progress_bars : bool, default=True
             If True, displays a progress bar while generating and scoring responses
 
         Returns
@@ -82,14 +81,13 @@ class LLMPanel(UncertaintyQuantifier):
         UQResult
             UQResult containing prompts, responses, Q/A concatenations, judge responses, and judge scores
         """
-        if progress_bar:
-            rprint("🤖 Generation")
-        responses = await self.generate_original_responses(prompts, progress_bar=progress_bar)
-        if progress_bar:
-            rprint("📈 Scoring")
-        return await self.score(prompts=prompts, responses=responses, progress_bar=progress_bar)
+        self._construct_progress_bar(show_progress_bars)
+        self._display_generation_header(show_progress_bars)
 
-    async def score(self, prompts: List[str], responses: Optional[List[str]] = None, progress_bar: bool = True) -> UQResult:
+        responses = await self.generate_original_responses(prompts, progress_bar=self.progress_bar)
+        return await self.score(prompts=prompts, responses=responses, show_progress_bars=show_progress_bars)
+
+    async def score(self, prompts: List[str], responses: Optional[List[str]] = None, show_progress_bars: bool = True, _display_header: bool = True) -> UQResult:
         """
         Use panel to of judges to score provided responses for correctness. Use if responses are already generated. Otherwise,
         use generate_and_score.
@@ -102,8 +100,8 @@ class LLMPanel(UncertaintyQuantifier):
         responses: list of str, default = None
             A list of LLM responses for the corresponding to the provided prompts.
 
-        progress_bar : bool, default=True
-            If True, displays a progress bar while generating and scoring responses
+        show_progress_bars : bool, default=True
+            If True, displays a progress bar while scoring responses
 
         Returns
         -------
@@ -114,10 +112,13 @@ class LLMPanel(UncertaintyQuantifier):
         self.responses = responses
         data = {"prompts": prompts, "responses": responses}
 
+        self._construct_progress_bar(show_progress_bars)
+        self._display_scoring_header(show_progress_bars and _display_header)
+
         judge_count = 1
         scores_lists = []
         for judge in self.judges:
-            tmp = await judge.judge_responses(prompts=prompts, responses=responses, progress_bar=progress_bar)
+            tmp = await judge.judge_responses(prompts=prompts, responses=responses, progress_bar=self.progress_bar)
             scores_lists.append(tmp["scores"])
             data[f"judge_{judge_count}"] = tmp["scores"]
             judge_count += 1
@@ -125,4 +126,7 @@ class LLMPanel(UncertaintyQuantifier):
         scores_dict = {"avg": [np.mean(scores) for scores in zip(*scores_lists)], "max": [np.max(scores) for scores in zip(*scores_lists)], "min": [np.min(scores) for scores in zip(*scores_lists)], "median": [np.median(scores) for scores in zip(*scores_lists)]}
         data.update(scores_dict)
         result = {"data": data, "metadata": {"num_judges": len(self.judges), "temperature": None if not self.llm else self.llm.temperature}}
+
+        self._stop_progress_bar()
+        self.progress_bar = None  # if re-run ensure the same progress object is not used
         return UQResult(result)
