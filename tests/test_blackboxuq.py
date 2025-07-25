@@ -50,16 +50,16 @@ async def test_bbuq(monkeypatch, mock_llm):
 
     monkeypatch.setattr(uqe, "generate_original_responses", mock_generate_original_responses)
     monkeypatch.setattr(uqe, "generate_candidate_responses", mock_generate_candidate_responses)
+    for show_progress_bars in [True, False]:
+        results = await uqe.generate_and_score(prompts=PROMPTS, num_responses=5, show_progress_bars=show_progress_bars)
 
-    results = await uqe.generate_and_score(prompts=PROMPTS, num_responses=5)
+        assert all([results.data["exact_match"][i] == pytest.approx(data["exact_match"][i]) for i in range(len(PROMPTS))])
 
-    assert all([results.data["exact_match"][i] == pytest.approx(data["exact_match"][i]) for i in range(len(PROMPTS))])
+        assert all([results.data["noncontradiction"][i] == pytest.approx(data["noncontradiction"][i]) for i in range(len(PROMPTS))])
 
-    assert all([results.data["noncontradiction"][i] == pytest.approx(data["noncontradiction"][i]) for i in range(len(PROMPTS))])
+        assert all([results.data["semantic_negentropy"][i] == pytest.approx(data["semantic_negentropy"][i]) for i in range(len(PROMPTS))])
 
-    assert all([results.data["semantic_negentropy"][i] == pytest.approx(data["semantic_negentropy"][i]) for i in range(len(PROMPTS))])
-
-    assert results.metadata == metadata
+        assert results.metadata == metadata
 
     # Test invalid scorer
     with pytest.raises(ValueError):
