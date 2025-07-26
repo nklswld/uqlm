@@ -116,7 +116,7 @@ class UncertaintyQuantifier:
             with contextlib.redirect_stdout(io.StringIO()):
                 generations = await generator_object.generate_responses(prompts=prompts, count=count, system_prompt=self.system_prompt, progress_bar=progress_bar)
             self.llm.temperature = llm_temperature
-        except Exception as e:
+        except Exception:
             if progress_bar:
                 progress_bar.stop()
             raise
