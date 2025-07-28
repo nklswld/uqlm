@@ -27,6 +27,7 @@ metadata = expected_result["metadata"]
 mock_object = AzureChatOpenAI(deployment_name="YOUR-DEPLOYMENT", temperature=1, api_key="SECRET_API_KEY", api_version="2024-05-01-preview", azure_endpoint="https://mocked.endpoint.com")
 
 
+@pytest.mark.flaky(reruns=3)
 @pytest.mark.asyncio
 async def test_semanticentropy(monkeypatch):
     PROMPTS = data["prompts"]

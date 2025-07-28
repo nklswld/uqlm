@@ -17,6 +17,7 @@ import itertools
 import time
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
+import numpy as np
 from rich.progress import Progress
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages.human import HumanMessage
@@ -181,9 +182,9 @@ class ResponseGenerator:
         if hasattr(self.llm, "logprobs"):
             if self.llm.logprobs:
                 if "logprobs_result" in result.generations[0][0].generation_info:
-                    logprobs = [result.generations[0][i].generation_info["logprobs_result"] for i in range(count)]
+                    logprobs = [np.nan if "logprobs_result" not in result.generations[0][i].generation_info else result.generations[0][i].generation_info["logprobs_result"] for i in range(count)]
                 elif "logprobs" in result.generations[0][0].generation_info:
-                    logprobs = [result.generations[0][i].generation_info["logprobs"]["content"] for i in range(count)]
+                    logprobs = [np.nan if "logprobs" not in result.generations[0][0].generation_info else result.generations[0][i].generation_info["logprobs"]["content"] for i in range(count)]
         return {"logprobs": logprobs, "responses": [result.generations[0][i].text for i in range(count)]}
 
     @staticmethod

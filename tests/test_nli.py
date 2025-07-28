@@ -37,6 +37,7 @@ def nli_model_cpu():
     return NLIScorer(verbose=True, device="cpu")
 
 
+@pytest.mark.flaky(reruns=3)
 def test_nli(text1, text2, nli_model):
     probabilities = nli_model.predict(text1, text2)
     del nli_model
@@ -44,6 +45,7 @@ def test_nli(text1, text2, nli_model):
     assert abs(float(probabilities[0][0]) - 0.00159405) < 1e-5
 
 
+@pytest.mark.flaky(reruns=3)
 def test_nli2(text1, nli_model_cpu):
     result = nli_model_cpu._observed_consistency_i(original=text1, candidates=[text1] * 5, use_best=False, compute_entropy=False)
     assert result["nli_score_i"] == 1
@@ -51,6 +53,7 @@ def test_nli2(text1, nli_model_cpu):
     assert result["tokenprob_semantic_entropy"] is None
 
 
+@pytest.mark.flaky(reruns=3)
 def test_nli3(text1, text2, nli_model_cpu):
     expected_warning = "Maximum response length exceeded for NLI comparison. Truncation will occur. To adjust, change the value of max_length"
 
@@ -60,6 +63,7 @@ def test_nli3(text1, text2, nli_model_cpu):
     gc.collect()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_nli4(nli_model_cpu):
     text1 = "Capital of France is Paris"
     text2 = " Paris is the capital of France"

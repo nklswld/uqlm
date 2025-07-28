@@ -508,7 +508,7 @@ class UQEnsemble(UncertaintyQuantifier):
         if self.white_box_components:
             self.white_box_object = WhiteBoxUQ()
         if self.judges:
-            self.judges_object = LLMPanel(judges=self.judges)
+            self.judges_object = LLMPanel(judges=self.judges, max_calls_per_min=self.max_calls_per_min)
         self.components = components
 
     def _validate_weights(self) -> None:
