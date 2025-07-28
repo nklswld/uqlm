@@ -181,10 +181,15 @@ class ResponseGenerator:
                 self.progress_bar.update(self.progress_task, advance=1)
         if hasattr(self.llm, "logprobs"):
             if self.llm.logprobs:
-                if "logprobs_result" in result.generations[0][0].generation_info:
-                    logprobs = [np.nan if "logprobs_result" not in result.generations[0][i].generation_info else result.generations[0][i].generation_info["logprobs_result"] for i in range(count)]
-                elif "logprobs" in result.generations[0][0].generation_info:
-                    logprobs = [np.nan if "logprobs" not in result.generations[0][i].generation_info else result.generations[0][i].generation_info["logprobs"]["content"] for i in range(count)]
+                for i in range(count):
+                    if "logprobs_result" in result.generations[0][i].generation_info:
+                        logprobs[i] = result.generations[0][i].generation_info["logprobs_result"]
+
+                    elif "logprobs" in result.generations[0][i].generation_info:
+                        if "content" in "logprobs" in result.generations[0][i].generation_info["logprobs"]:
+                            logprobs[i] = result.generations[0][i].generation_info["logprobs"]["content"]
+                    else:
+                        logprobs[i] = np.nan
         return {"logprobs": logprobs, "responses": [result.generations[0][i].text for i in range(count)]}
 
     @staticmethod
