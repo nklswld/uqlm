@@ -184,7 +184,7 @@ class ResponseGenerator:
                 if "logprobs_result" in result.generations[0][0].generation_info:
                     logprobs = [np.nan if "logprobs_result" not in result.generations[0][i].generation_info else result.generations[0][i].generation_info["logprobs_result"] for i in range(count)]
                 elif "logprobs" in result.generations[0][0].generation_info:
-                    logprobs = [np.nan if "logprobs" not in result.generations[0][0].generation_info else result.generations[0][i].generation_info["logprobs"]["content"] for i in range(count)]
+                    logprobs = [np.nan if "logprobs" not in result.generations[0][i].generation_info else result.generations[0][i].generation_info["logprobs"]["content"] for i in range(count)]
         return {"logprobs": logprobs, "responses": [result.generations[0][i].text for i in range(count)]}
 
     @staticmethod
