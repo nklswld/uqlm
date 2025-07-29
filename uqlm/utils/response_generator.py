@@ -15,6 +15,7 @@
 import asyncio
 import itertools
 import time
+import warnings
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
@@ -189,6 +190,7 @@ class ResponseGenerator:
                         if "content" in "logprobs" in result.generations[0][i].generation_info["logprobs"]:
                             logprobs[i] = result.generations[0][i].generation_info["logprobs"]["content"]
                     else:
+                        warnings.warn("Model did not provide logprobs in API response. White-box scores for this response may be set to np.nan.")
                         logprobs[i] = np.nan
         return {"logprobs": logprobs, "responses": [result.generations[0][i].text for i in range(count)]}
 
