@@ -29,6 +29,8 @@
    :recursive:
 
    uqlm.utils.dataloader
+   uqlm.utils.display
+   uqlm.utils.llm_config
    uqlm.utils.plots
    uqlm.utils.postprocessors
    uqlm.utils.response_generator
