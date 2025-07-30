@@ -40,10 +40,11 @@ async def test_whiteboxuq(monkeypatch):
         return MOCKED_RESPONSES
 
     monkeypatch.setattr(wbuq, "generate_original_responses", mock_generate_original_responses)
-    results = await wbuq.generate_and_score(prompts=PROMPTS)
+    for show_progress_bars in [True, False]:
+        results = await wbuq.generate_and_score(prompts=PROMPTS, show_progress_bars=show_progress_bars)
 
-    assert all([results.data["normalized_probability"][i] == pytest.approx(data["normalized_probability"][i]) for i in range(len(PROMPTS))])
+        assert all([results.data["normalized_probability"][i] == pytest.approx(data["normalized_probability"][i]) for i in range(len(PROMPTS))])
 
-    assert all([results.data["min_probability"][i] == pytest.approx(data["min_probability"][i]) for i in range(len(PROMPTS))])
+        assert all([results.data["min_probability"][i] == pytest.approx(data["min_probability"][i]) for i in range(len(PROMPTS))])
 
-    assert results.metadata == metadata
+        assert results.metadata == metadata

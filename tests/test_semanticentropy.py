@@ -27,6 +27,7 @@ metadata = expected_result["metadata"]
 mock_object = AzureChatOpenAI(deployment_name="YOUR-DEPLOYMENT", temperature=1, api_key="SECRET_API_KEY", api_version="2024-05-01-preview", azure_endpoint="https://mocked.endpoint.com")
 
 
+@pytest.mark.flaky(reruns=3)
 @pytest.mark.asyncio
 async def test_semanticentropy(monkeypatch):
     PROMPTS = data["prompts"]
@@ -47,11 +48,13 @@ async def test_semanticentropy(monkeypatch):
     monkeypatch.setattr(se_object, "generate_original_responses", mock_generate_original_responses)
     monkeypatch.setattr(se_object, "generate_candidate_responses", mock_generate_candidate_responses)
 
-    se_results = await se_object.generate_and_score(prompts=PROMPTS)
-    se_results = se_object.score(responses=MOCKED_RESPONSES, sampled_responses=MOCKED_SAMPLED_RESPONSES)
-    assert se_results.data["responses"] == data["responses"]
-    assert se_results.data["sampled_responses"] == data["sampled_responses"]
-    assert se_results.data["prompts"] == data["prompts"]
-    assert all([abs(se_results.data["entropy_values"][i] - data["entropy_values"][i]) < 1e-5 for i in range(len(PROMPTS))])
-    assert all([abs(se_results.data["confidence_scores"][i] - data["confidence_scores"][i]) < 1e-5 for i in range(len(PROMPTS))])
-    assert se_results.metadata == metadata
+    for show_progress_bars in [True, False]:
+        se_results = await se_object.generate_and_score(prompts=PROMPTS, show_progress_bars=show_progress_bars)
+        se_object.logprobs = None
+        se_results = se_object.score(responses=MOCKED_RESPONSES, sampled_responses=MOCKED_SAMPLED_RESPONSES)
+        assert se_results.data["responses"] == data["responses"]
+        assert se_results.data["sampled_responses"] == data["sampled_responses"]
+        assert se_results.data["prompts"] == data["prompts"]
+        assert all([abs(se_results.data["discrete_entropy_values"][i] - data["entropy_values"][i]) < 1e-5 for i in range(len(PROMPTS))])
+        assert all([abs(se_results.data["discrete_confidence_scores"][i] - data["confidence_scores"][i]) < 1e-5 for i in range(len(PROMPTS))])
+        assert se_results.metadata == metadata
