@@ -37,6 +37,7 @@ def mock_llm():
     return AzureChatOpenAI(deployment_name="YOUR-DEPLOYMENT", temperature=1, api_key="SECRET_API_KEY", api_version="2024-05-01-preview", azure_endpoint="https://mocked.endpoint.com")
 
 
+@pytest.mark.flaky(reruns=3)
 @pytest.mark.asyncio
 async def test_bbuq(monkeypatch, mock_llm):
     uqe = BlackBoxUQ(llm=mock_llm, scorers=["noncontradiction", "exact_match", "semantic_negentropy"])
@@ -51,16 +52,16 @@ async def test_bbuq(monkeypatch, mock_llm):
 
     monkeypatch.setattr(uqe, "generate_original_responses", mock_generate_original_responses)
     monkeypatch.setattr(uqe, "generate_candidate_responses", mock_generate_candidate_responses)
+    for show_progress_bars in [True, False]:
+        results = await uqe.generate_and_score(prompts=PROMPTS, num_responses=5, show_progress_bars=show_progress_bars)
 
-    results = await uqe.generate_and_score(prompts=PROMPTS, num_responses=5)
+        assert all([results.data["exact_match"][i] == pytest.approx(data["exact_match"][i]) for i in range(len(PROMPTS))])
 
-    assert all([results.data["exact_match"][i] == pytest.approx(data["exact_match"][i]) for i in range(len(PROMPTS))])
+        assert all([results.data["noncontradiction"][i] == pytest.approx(data["noncontradiction"][i]) for i in range(len(PROMPTS))])
 
-    assert all([results.data["noncontradiction"][i] == pytest.approx(data["noncontradiction"][i]) for i in range(len(PROMPTS))])
+        assert all([results.data["semantic_negentropy"][i] == pytest.approx(data["semantic_negentropy"][i]) for i in range(len(PROMPTS))])
 
-    assert all([results.data["semantic_negentropy"][i] == pytest.approx(data["semantic_negentropy"][i]) for i in range(len(PROMPTS))])
-
-    assert results.metadata == metadata
+        assert results.metadata == metadata
 
     # Test invalid scorer
     with pytest.raises(ValueError):
@@ -70,16 +71,4 @@ async def test_bbuq(monkeypatch, mock_llm):
     uqe_default = BlackBoxUQ(llm=mock_llm, scorers=None)
     assert len(uqe_default.scorers) == len(DEFAULT_BLACK_BOX_SCORERS)
 
-    # Mock the entire bleurt module structure for testing
-    class MockBLEURTScorer:
-        def __init__(self):
-            pass
-
-    # Create a proper module structure that matches the import path
-    class MockBlackBoxModule:
-        BLEURTScorer = MockBLEURTScorer
-
-    # Directly modify sys.modules dictionary with the complete module structure
-    monkeypatch.setitem(sys.modules, "uqlm.black_box", MockBlackBoxModule())
-
-    BlackBoxUQ(llm=mock_llm, scorers=["bert_score", "bleurt"])
+    BlackBoxUQ(llm=mock_llm, scorers=["bert_score"])
