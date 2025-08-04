@@ -13,7 +13,6 @@
 # limitations under the License.
 
 
-
 import numpy as np
 from typing import Any, List, Optional
 from bert_score import BERTScorer
@@ -29,7 +28,7 @@ class BertScorer(SimilarityScorer):
         """
         Class for computing BERTScore values between original responses and candidates. For more on
         BERTScore, refer to Zhang et al.(2020) :footcite:`zhang2020bertscoreevaluatingtextgeneration`.
-        
+
         Parameters
         ----------
         device : torch.device input or torch.device object, default=None
@@ -37,8 +36,9 @@ class BertScorer(SimilarityScorer):
             leverage the GPU.
         """
         from transformers import logging
+
         logging.set_verbosity_error()
-        self.bert_scorer = BERTScorer(device=device, lang='en')
+        self.bert_scorer = BERTScorer(device=device, lang="en")
 
     def evaluate(self, responses: List[str], sampled_responses: List[List[str]], progress_bar: Optional[Progress] = None) -> List[float]:
         """
