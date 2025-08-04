@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from uqlm.utils.prompt_templates import claim_breakdown_template
+from uqlm.utils.prompt_templates import get_claim_breakdown_template
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn, Console
 from langchain_core.language_models.chat_models import BaseChatModel
 import re
@@ -64,14 +64,14 @@ def claims_postprocessor(self, llm: BaseChatModel, responses: list[str] | str, p
                 task = progress.add_task("Processing", total=len(responses))
                 for response in responses:
                     progress.update(task, description="Processing response(s)...")
-                    res = llm.invoke(claim_breakdown_template.format(response))
+                    res = llm.invoke(get_claim_breakdown_template(response))
                     if res.content:
                         claims.extend(re.findall(r"### (.*)", res.content))
                     progress.update(task, advance=1)
         else:
             claims = []
             for response in responses:
-                res = llm.invoke(claim_breakdown_template.format(response))
+                res = llm.invoke(get_claim_breakdown_template(response))
                 if res.content:
                     claims.extend(re.findall(r"### (.*)", res.content))
         return claims
