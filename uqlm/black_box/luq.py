@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Any
+from typing import List, Any, Tuple
 import numpy as np
 from uqlm.black_box.nli import NLIScorer
 from uqlm.black_box.baseclass.claims_scorer import ClaimsScorer
@@ -29,11 +29,12 @@ class LUQScorer(ClaimsScorer):
                                     max_length=max_length)
         
 
-    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[str]) -> List[float]:
+    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[str]) -> Tuple[List[float], List[np.ndarray]]:
         """
         Evaluate the LUQ score for a list of claims and sampled responses.
         """
         luq_score = np.zeros(len(claim_sets))
+        entailment_scores = []
         for claim_set_idx, claim_set in enumerate(claim_sets):
             num_claims = len(claim_set)
             num_samples = len(sampled_responses)
@@ -49,12 +50,13 @@ class LUQScorer(ClaimsScorer):
                         score_ = 0.5
                     else:
                         score_ = 0
-                    print(f"claim: {claim}, sample: {sample}, nli_proba: {nli_proba}, nli_label: {nli_label}, score: {score_}")
+                    print(f"claim: {claim} \n sample: {sample} \n nli_proba: {nli_proba} \n nli_label: {nli_label} \n score: {score_}")
                     scores[claim_idx, sample_idx] = score_
                 print("--------------------------------")
             print(scores)
+            entailment_scores.append(scores)
             scores_per_claim = np.mean(scores, axis=-1)
             luq_score[claim_set_idx] = scores_per_claim.mean()
             print(f'LUQ score for claim set {claim_set_idx}: {luq_score[claim_set_idx]}')
-        return luq_score  
+        return luq_score, entailment_scores
     
