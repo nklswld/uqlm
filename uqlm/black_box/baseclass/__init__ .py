@@ -13,6 +13,6 @@
 # limitations under the License.
 
 from uqlm.black_box.baseclass.similarity_scorer import SimilarityScorer
-from uqlm.black_box.baseclass.claim_scorer import ClaimScorer
+from uqlm.black_box.baseclass.claims_scorer import ClaimScorer
 
 __all__ = ["SimilarityScorer", "ClaimScorer"]
