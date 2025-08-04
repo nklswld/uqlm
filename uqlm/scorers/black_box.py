@@ -212,7 +212,7 @@ class BlackBoxUQ(UncertaintyQuantifier):
             if scorer == "exact_match":
                 self.scorer_objects["exact_match"] = MatchScorer()
             elif scorer == "bert_score":
-                self.scorer_objects["bert_score"] = BertScorer()
+                self.scorer_objects["bert_score"] = BertScorer(device=self.device)
             elif scorer == "cosine_sim":
                 self.scorer_objects["cosine_sim"] = CosineScorer(transformer=self.sentence_transformer)
             elif scorer in ["semantic_negentropy", "noncontradiction"]:
