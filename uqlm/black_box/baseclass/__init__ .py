@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from uqlm.black_box.similarity_scorer import SimilarityScorer
+from uqlm.black_box.baseclass.similarity_scorer import SimilarityScorer
+from uqlm.black_box.baseclass.claim_scorer import ClaimScorer
 
-__all__ = ["SimilarityScorer"]
+__all__ = ["SimilarityScorer", "ClaimScorer"]

@@ -16,7 +16,7 @@ from abc import ABC, abstractmethod
 from typing import List
 
 
-class SimilarityScorer(ABC):
+class ClaimScorer(ABC):
     """Abstract class for text similarity scorers"""
 
     @abstractmethod
@@ -25,7 +25,8 @@ class SimilarityScorer(ABC):
         pass
 
     @abstractmethod
-    def evaluate(self, responses: List[str], sampled_responses: List[str]) -> List[float]:
+    def evaluate(self, claims: List[str], sampled_responses: List[str]) -> List[float]:
         """Abstract method for metric computation"""
         pass
+
 
