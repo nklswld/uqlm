@@ -137,7 +137,7 @@ class NLIScorer(SimilarityScorer):
             sampled_responses[i] = oc_result_i["candidates"]  # Replace with updated candidates if use_best
 
         if progress_bar:
-            progress_task = progress_bar.add_task("  - [black]Scoring responses with NLI...", total=len(responses))
+            progress_task = progress_bar.add_task("  - Scoring responses with NLI...", total=len(responses))
         for i, response in enumerate(responses):
             _process_i(i, response)
             if progress_bar:

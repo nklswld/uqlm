@@ -71,6 +71,8 @@ class UncertaintyQuantifier:
         self.white_box_names = WHITE_BOX_SCORERS
         self.default_black_box_names = DEFAULT_BLACK_BOX_SCORERS
         self.progress_bar = None
+        self.raw_responses = None
+        self.raw_sampled_responses = None
 
     async def generate_original_responses(self, prompts: List[str], progress_bar: Optional[Progress] = None) -> List[str]:
         """
@@ -82,6 +84,7 @@ class UncertaintyQuantifier:
         responses = generations["responses"]
         self.logprobs = generations["logprobs"]
         if self.postprocessor:
+            self.raw_responses = responses
             responses = [self.postprocessor(r) for r in responses]
         return responses
 
@@ -100,6 +103,7 @@ class UncertaintyQuantifier:
             if len(tmp_lp) == len(tmp_mr):
                 self.multiple_logprobs.append(tmp_lp[i * self.num_responses : (i + 1) * self.num_responses])
         if self.postprocessor:
+            self.raw_sampled_responses = sampled_responses
             sampled_responses = [[self.postprocessor(r) for r in m] for m in sampled_responses]
         self.llm.temperature = llm_temperature
         return sampled_responses
@@ -139,22 +143,47 @@ class UncertaintyQuantifier:
         """Set up NLI scorer"""
         self.nli_scorer = NLIScorer(nli_model_name=self.nli_model_name, device=self.device, max_length=self.max_length, verbose=self.verbose)
 
-    def _update_best(self, best_responses: List[str]) -> None:
+    def _update_best(self, best_responses: List[str], include_logprobs: bool = True) -> None:
         """Updates best"""
         self.original_responses = self.responses.copy()
         for i, response in enumerate(self.responses):
             all_candidates = [response] + self.sampled_responses[i]
-            all_logprobs = [self.logprobs[i]] + self.multiple_logprobs[i]
-            best_logprobs = all_logprobs[all_candidates.index(best_responses[i])]
+            index_of_best = all_candidates.index(best_responses[i])
 
             all_candidates.remove(best_responses[i])
             self.responses[i] = best_responses[i]
             self.sampled_responses[i] = all_candidates
+            
+            if include_logprobs:
+                all_logprobs = [self.logprobs[i]] + self.multiple_logprobs[i]
+                best_logprobs = all_logprobs[index_of_best]
+                all_logprobs.remove(best_logprobs)
+                self.logprobs[i] = best_logprobs
+                self.multiple_logprobs[i] = all_logprobs
+            
+            if self.postprocessor:
+                all_raw_candidates = [self.raw_responses[i]] + self.raw_sampled_responses[i]
+                best_raw_response = all_raw_candidates[index_of_best]
+                all_raw_candidates.remove(best_raw_response)
+                self.raw_responses[i] = best_raw_response
+                self.raw_sampled_responses[i] = all_raw_candidates
+                
+    def _construct_black_box_return_data(self):
+        """Helper function to prepare black box return data"""
+        data_to_return = {"responses": self.responses, "sampled_responses": self.sampled_responses}
+        if self.postprocessor:
+            if self.return_responses == "all":
+                data_to_return["raw_responses"] = self.raw_responses
+                data_to_return["raw_sampled_responses"] = self.raw_sampled_responses
+            elif self.return_responses == "raw":
+                data_to_return["responses"] = self.raw_responses
+                data_to_return["sampled_responses"] = self.raw_sampled_responses
+                
+        if self.prompts:
+            data_to_return["prompts"] = self.prompts
 
-            all_logprobs.remove(best_logprobs)
-            self.logprobs[i] = best_logprobs
-            self.multiple_logprobs[i] = all_logprobs
-
+        return data_to_return
+                
     def _construct_progress_bar(self, show_progress_bars: bool, _existing_progress_bar: Any = None) -> None:
         """Constructs and starts progress bar"""
         if _existing_progress_bar:
@@ -228,6 +257,6 @@ class UQResult:
         """
         Returns result in pd.DataFrame
         """
-        rename_dict = {col: col[:-1] for col in self.result_dict["data"].keys() if col.endswith("s") and col != "sampled_responses"}
+        rename_dict = {col: col[:-1] for col in self.result_dict["data"].keys() if col.endswith("s") and col not in ["sampled_responses", "raw_sampled_responses"]}
 
         return pd.DataFrame(self.result_dict["data"]).rename(columns=rename_dict)
