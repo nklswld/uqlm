@@ -25,6 +25,13 @@ class ClaimScores:
     response_scores: List[float]
     claim_scores: List[np.ndarray]
     entailment_scores: List[np.ndarray]
+    
+    def to_dict(self) -> dict:
+        return {
+            "response_scores": self.response_scores,
+            "claim_scores": self.claim_scores,
+            "entailment_scores": self.entailment_scores
+        }
 
 class ClaimScorer(ABC):
     """Abstract class for text similarity scorers"""
