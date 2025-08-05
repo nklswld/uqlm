@@ -22,8 +22,9 @@ class ClaimScores:
     """
     ClaimsScore is a dataclass that contains the aggregated score and the raw scores for each claim set.
     """
-    aggregated_score: List[float]
+    response_scores: List[float]
     claim_scores: List[np.ndarray]
+    entailment_scores: List[np.ndarray]
 
 class ClaimScorer(ABC):
     """Abstract class for text similarity scorers"""
