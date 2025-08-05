@@ -23,7 +23,7 @@ class ClaimScores:
     ClaimsScore is a dataclass that contains the aggregated score and the raw scores for each claim set.
     """
     aggregated_score: List[float]
-    raw_scores: List[np.ndarray]
+    claim_scores: List[np.ndarray]
     
 
 
@@ -36,7 +36,7 @@ class ClaimScorer(ABC):
         pass
 
     @abstractmethod
-    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[str]) -> ClaimScores:
+    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[List[str]]) -> ClaimScores:
         """Abstract method for metric computation"""
         pass
 

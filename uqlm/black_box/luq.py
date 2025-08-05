@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Any
+from typing import List, Any, Tuple
 import numpy as np
 from uqlm.black_box.nli import NLIScorer
 from uqlm.black_box.baseclass.claims_scorer import ClaimScorer, ClaimScores
@@ -29,6 +29,27 @@ class LUQScorer(ClaimScorer):
                                     max_length=max_length)
         
 
+    
+
+    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[List[str]]) -> ClaimScores:
+        """
+        Evaluate the LUQ score for a list of claims and sampled responses.
+        """
+        luq_scores = np.zeros(len(claim_sets))
+        claim_scores = []
+        for i, (claim_set, candidates) in enumerate(zip(claim_sets, sampled_responses)):  
+            luq_score, claim_scores_ = self._compute_luq_score(claim_set, candidates)
+            luq_scores[i] = luq_score
+            claim_scores.append(claim_scores_)
+        return ClaimScores(aggregated_score=luq_scores, claim_scores=claim_scores)
+
+    def _compute_luq_score(self, claims: List[str], candidate_responses: List[str]) -> Tuple[float, np.ndarray]:
+        scores = np.zeros(shape=(len(claims), len(candidate_responses)))
+        for i, claim in enumerate(claims):
+            for j, candidate in enumerate(candidate_responses):
+                scores[i, j] = self._calc_entailment_score(claim, candidate)
+        return scores.mean(axis=1).mean(), scores
+    
     def _calc_entailment_score(self, claim: str, sample: str) -> float:
         nli_proba = self.nli_scorer.predict(sample, claim)
         nli_label = self.nli_scorer.label_mapping[nli_proba.argmax(axis=1)[0]]
@@ -37,24 +58,3 @@ class LUQScorer(ClaimScorer):
         if nli_label == "neutral":
             return 0.5
         return 0
-
-    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[str]) -> ClaimScores:
-        """
-        Evaluate the LUQ score for a list of claims and sampled responses.
-        """
-        luq_score = np.zeros(len(claim_sets))
-        entailment_scores = []
-        for claim_set_idx, claim_set in enumerate(claim_sets):
-            num_claims = len(claim_set)
-            num_samples = len(sampled_responses)
-            scores = np.zeros((num_claims, num_samples))
-            for claim_idx in range(num_claims):
-                claim = claim_set[claim_idx]
-                for sample_idx, sample in enumerate(sampled_responses):
-                    score = self._calc_entailment_score(claim, sample)
-                    scores[claim_idx, sample_idx] = score
-            entailment_scores.append(scores)
-            scores_per_claim = np.mean(scores, axis=-1)
-            luq_score[claim_set_idx] = scores_per_claim.mean()
-        return ClaimScores(aggregated_score=luq_score, raw_scores=entailment_scores)
-    
