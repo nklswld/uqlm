@@ -33,22 +33,25 @@ class LUQScorer(ClaimScorer):
         Evaluate the LUQ score and claim scores for a list of claims from each original response and sampled responses.
         """
         luq_scores = np.zeros(len(claim_sets))
+        entailment_scores = []
         claim_scores = []
         for i, (claim_set, candidates) in enumerate(zip(claim_sets, sampled_responses)):  
-            luq_score, claim_scores_ = self._compute_luq_score(claim_set, candidates)
+            luq_score, claim_scores_, entailment_scores_ = self._compute_luq_score(claim_set, candidates)
             luq_scores[i] = luq_score
             claim_scores.append(claim_scores_)
-        return ClaimScores(aggregated_score=luq_scores, claim_scores=claim_scores)
+            entailment_scores.append(entailment_scores_)
+        return ClaimScores(response_scores=luq_scores, claim_scores=claim_scores, entailment_scores=entailment_scores)
 
-    def _compute_luq_score(self, claims: List[str], candidate_responses: List[str]) -> Tuple[float, np.ndarray]:
+    def _compute_luq_score(self, claims: List[str], candidate_responses: List[str]) -> Tuple[float, np.ndarray,np.ndarray]:
         """Evaluate the LUQ score and claim scores for a list of claims and candidate responses."""
         scores = np.zeros(shape=(len(claims), len(candidate_responses)))
         for i, claim in enumerate(claims):
             for j, candidate in enumerate(candidate_responses):
-                scores[i, j] = self._calc_entailment_score(claim, candidate)
-        return scores.mean(axis=1).mean(), scores
+                scores[i, j] = self._compute_entailment_score(claim, candidate)
+        claim_scores_ = scores.mean(axis=1)
+        return claim_scores_.mean(), claim_scores_, scores
     
-    def _calc_entailment_score(self, claim: str, sample: str) -> float:
+    def _compute_entailment_score(self, claim: str, sample: str) -> float:
         nli_proba = self.nli.predict(hypothesis=sample, premise=claim)
         nli_label = self.nli.label_mapping[nli_proba.argmax(axis=1)[0]]
         if nli_label == "entailment":
