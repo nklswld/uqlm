@@ -48,25 +48,55 @@ class LongFormUQ(UncertaintyQuantifier):
         self.scorers = scorers
 
     async def generate_and_score(self, prompts: List[str], num_responses: int = 5, show_progress_bars: Optional[bool] = True) -> UQResult:
-        pass
+        """
+        Generate LLM responses, sampled LLM (candidate) responses, and compute confidence scores with specified scorers for the provided prompts.
+
+        Parameters
+        ----------
+        prompts : list of str
+            A list of input prompts for the model.
+
+        num_responses : int, default=5
+            The number of sampled responses used to compute consistency.
+
+        show_progress_bars : bool, default=True
+            If True, displays progress bars while generating and scoring responses
+
+        Returns
+        -------
+        UQResult
+            UQResult containing data (prompts, responses, and scores) and metadata
+        """
+        self.prompts = prompts
+        self.num_responses = num_responses
+
+        self._construct_progress_bar(show_progress_bars)
+        self._display_generation_header(show_progress_bars)
+
+        responses = await self.generate_original_responses(prompts=prompts, progress_bar=self.progress_bar)
+        sampled_responses = await self.generate_candidate_responses(prompts=prompts, progress_bar=self.progress_bar)
+        result = self.score(responses=responses, sampled_responses=sampled_responses, show_progress_bars=show_progress_bars)
+        return result
 
     def score(self,
               responses: List[str], 
-              sampled_responses: List[List[str]]
+              sampled_responses: List[List[str]],
+              show_progress_bars: Optional[bool] = True,
+              _display_header: bool = True,
               ) -> UQResult:
         self.responses = responses
         self.sampled_responses = sampled_responses
         self.num_responses = len(sampled_responses[0])
         self.scores_dict = {k: [] for k in self.scorer_objects}
-        self.claim_sets = claims_postprocessor(llm=self.claim_decomposition_llm, responses=responses)
-        # self._construct_progress_bar(show_progress_bars)
-        # self._display_scoring_header(show_progress_bars and _display_header)
+        self.claim_sets = claims_postprocessor(llm=self.claim_decomposition_llm, responses=responses, progress=False)
+        self._construct_progress_bar(show_progress_bars)
+        self._display_scoring_header(show_progress_bars and _display_header)
         
         for scorer_key, scorer_object in self.scorer_objects.items():
-            self.scores_dict[scorer_key] = scorer_object.evaluate(self.claim_sets, self.sampled_responses).to_dict()
+            self.scores_dict[scorer_key] = scorer_object.evaluate(self.claim_sets, self.sampled_responses, progress_bar=self.progress_bar).to_dict()
         result = self._construct_result()
-        # self._stop_progress_bar()
-        # self.progress_bar = None  # if re-run ensure the same progress object is not used
+        self._stop_progress_bar()
+        self.progress_bar = None  # if re-run ensure the same progress object is not used
         return result
     
     def _construct_result(self) -> Any:

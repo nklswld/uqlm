@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Any, Tuple
+from typing import List, Any, Tuple, Optional
 import numpy as np
+import time
+from rich.progress import Progress
 from uqlm.utils.nli import NLI
 from uqlm.black_box.baseclass.claims_scorer import ClaimScorer, ClaimScores
 
@@ -28,10 +30,12 @@ class LUQScorer(ClaimScorer):
                        nli_model_name=nli_model_name,
                        max_length=max_length)
         
-    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[List[str]]) -> ClaimScores:
+    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[List[str]], progress_bar: Optional[Progress] = None) -> ClaimScores:
         """
         Evaluate the LUQ score and claim scores for a list of claims from each original response and sampled responses.
         """
+        if progress_bar:
+            progress_task = progress_bar.add_task("  - [black]Scoring claim sets with LUQ...", total=len(claim_sets))
         luq_scores = np.zeros(len(claim_sets))
         entailment_scores = []
         claim_scores = []
@@ -40,6 +44,9 @@ class LUQScorer(ClaimScorer):
             luq_scores[i] = luq_score
             claim_scores.append(claim_scores_)
             entailment_scores.append(entailment_scores_)
+            if progress_bar:
+                progress_bar.update(progress_task, advance=1)
+        time.sleep(0.1)
         return ClaimScores(response_scores=luq_scores, claim_scores=claim_scores, entailment_scores=entailment_scores)
 
     def _compute_luq_score(self, claims: List[str], candidate_responses: List[str]) -> Tuple[float, np.ndarray,np.ndarray]:
