@@ -18,7 +18,7 @@ from dataclasses import dataclass
 import numpy as np
 
 @dataclass
-class ClaimsScores:
+class ClaimScores:
     """
     ClaimsScore is a dataclass that contains the aggregated score and the raw scores for each claim set.
     """
@@ -27,7 +27,7 @@ class ClaimsScores:
     
 
 
-class ClaimsScorer(ABC):
+class ClaimScorer(ABC):
     """Abstract class for text similarity scorers"""
 
     @abstractmethod
@@ -36,7 +36,7 @@ class ClaimsScorer(ABC):
         pass
 
     @abstractmethod
-    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[str]) -> ClaimsScores:
+    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[str]) -> ClaimScores:
         """Abstract method for metric computation"""
         pass
 

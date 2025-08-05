@@ -15,9 +15,9 @@
 from typing import List, Any
 import numpy as np
 from uqlm.black_box.nli import NLIScorer
-from uqlm.black_box.baseclass.claims_scorer import ClaimsScorer, ClaimsScores
+from uqlm.black_box.baseclass.claims_scorer import ClaimScorer, ClaimScores
 
-class LUQScorer(ClaimsScorer):
+class LUQScorer(ClaimScorer):
     """
     LUQScorer calculates the LUQ score .
     """
@@ -38,7 +38,7 @@ class LUQScorer(ClaimsScorer):
             return 0.5
         return 0
 
-    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[str]) -> ClaimsScores:
+    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[str]) -> ClaimScores:
         """
         Evaluate the LUQ score for a list of claims and sampled responses.
         """
@@ -56,5 +56,5 @@ class LUQScorer(ClaimsScorer):
             entailment_scores.append(scores)
             scores_per_claim = np.mean(scores, axis=-1)
             luq_score[claim_set_idx] = scores_per_claim.mean()
-        return ClaimsScores(aggregated_score=luq_score, raw_scores=entailment_scores)
+        return ClaimScores(aggregated_score=luq_score, raw_scores=entailment_scores)
     
