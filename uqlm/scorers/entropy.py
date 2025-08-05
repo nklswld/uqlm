@@ -35,7 +35,7 @@ class SemanticEntropy(UncertaintyQuantifier):
         verbose: bool = False,
         nli_model_name: str = "microsoft/deberta-large-mnli",
         max_length: int = 2000,
-        return_responses: bool = "all",
+        return_responses: str = "all",
     ) -> None:
         """
         Class for computing discrete and token-probability-based semantic entropy and associated confidence scores. For more on semantic entropy, refer to Farquhar et al.(2024) :footcite:`farquhar2024detectinghallucinations`.
