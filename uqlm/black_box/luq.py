@@ -14,7 +14,7 @@
 
 from typing import List, Any, Tuple
 import numpy as np
-from uqlm.black_box.nli import NLIScorer
+from uqlm.utils.nli import NLI
 from uqlm.black_box.baseclass.claims_scorer import ClaimScorer, ClaimScores
 
 class LUQScorer(ClaimScorer):
@@ -24,16 +24,13 @@ class LUQScorer(ClaimScorer):
     def __init__(self, nli_model_name: str = "microsoft/deberta-large-mnli", device: Any = None, max_length: int = 2000):
         self.nli_model_name = nli_model_name
         self.device = device
-        self.nli_scorer = NLIScorer(device=device,
-                                    nli_model_name=nli_model_name,
-                                    max_length=max_length)
+        self.nli = NLI(device=device,
+                       nli_model_name=nli_model_name,
+                       max_length=max_length)
         
-
-    
-
     def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[List[str]]) -> ClaimScores:
         """
-        Evaluate the LUQ score for a list of claims and sampled responses.
+        Evaluate the LUQ score and claim scores for a list of claims from each original response and sampled responses.
         """
         luq_scores = np.zeros(len(claim_sets))
         claim_scores = []
@@ -44,6 +41,7 @@ class LUQScorer(ClaimScorer):
         return ClaimScores(aggregated_score=luq_scores, claim_scores=claim_scores)
 
     def _compute_luq_score(self, claims: List[str], candidate_responses: List[str]) -> Tuple[float, np.ndarray]:
+        """Evaluate the LUQ score and claim scores for a list of claims and candidate responses."""
         scores = np.zeros(shape=(len(claims), len(candidate_responses)))
         for i, claim in enumerate(claims):
             for j, candidate in enumerate(candidate_responses):
@@ -51,8 +49,8 @@ class LUQScorer(ClaimScorer):
         return scores.mean(axis=1).mean(), scores
     
     def _calc_entailment_score(self, claim: str, sample: str) -> float:
-        nli_proba = self.nli_scorer.predict(sample, claim)
-        nli_label = self.nli_scorer.label_mapping[nli_proba.argmax(axis=1)[0]]
+        nli_proba = self.nli.predict(hypothesis=sample, premise=claim)
+        nli_label = self.nli.label_mapping[nli_proba.argmax(axis=1)[0]]
         if nli_label == "entailment":
             return 1
         if nli_label == "neutral":

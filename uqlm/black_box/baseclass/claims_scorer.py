@@ -24,8 +24,6 @@ class ClaimScores:
     """
     aggregated_score: List[float]
     claim_scores: List[np.ndarray]
-    
-
 
 class ClaimScorer(ABC):
     """Abstract class for text similarity scorers"""
