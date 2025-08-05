@@ -48,7 +48,7 @@ class UQEnsemble(UncertaintyQuantifier):
         sampling_temperature: float = 1.0,
         max_length: int = 2000,
         verbose: bool = False,
-        return_responses: bool = "all",
+        return_responses: str = "all",
     ) -> None:
         """
         Class for detecting bad and speculative answer from a pretrained Large Language Model (LLM Hallucination).
