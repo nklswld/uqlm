@@ -153,21 +153,21 @@ class UncertaintyQuantifier:
             all_candidates.remove(best_responses[i])
             self.responses[i] = best_responses[i]
             self.sampled_responses[i] = all_candidates
-            
+
             if include_logprobs:
                 all_logprobs = [self.logprobs[i]] + self.multiple_logprobs[i]
                 best_logprobs = all_logprobs[index_of_best]
                 all_logprobs.remove(best_logprobs)
                 self.logprobs[i] = best_logprobs
                 self.multiple_logprobs[i] = all_logprobs
-            
+
             if self.postprocessor:
                 all_raw_candidates = [self.raw_responses[i]] + self.raw_sampled_responses[i]
                 best_raw_response = all_raw_candidates[index_of_best]
                 all_raw_candidates.remove(best_raw_response)
                 self.raw_responses[i] = best_raw_response
                 self.raw_sampled_responses[i] = all_raw_candidates
-                
+
     def _construct_black_box_return_data(self):
         """Helper function to prepare black box return data"""
         data_to_return = {"responses": self.responses, "sampled_responses": self.sampled_responses}
@@ -178,12 +178,12 @@ class UncertaintyQuantifier:
             elif self.return_responses == "raw":
                 data_to_return["responses"] = self.raw_responses
                 data_to_return["sampled_responses"] = self.raw_sampled_responses
-                
+
         if self.prompts:
             data_to_return["prompts"] = self.prompts
 
         return data_to_return
-                
+
     def _construct_progress_bar(self, show_progress_bars: bool, _existing_progress_bar: Any = None) -> None:
         """Constructs and starts progress bar"""
         if _existing_progress_bar:

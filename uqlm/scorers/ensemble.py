@@ -48,7 +48,7 @@ class UQEnsemble(UncertaintyQuantifier):
         sampling_temperature: float = 1.0,
         max_length: int = 2000,
         verbose: bool = False,
-        return_responses: bool = "all"
+        return_responses: bool = "all",
     ) -> None:
         """
         Class for detecting bad and speculative answer from a pretrained Large Language Model (LLM Hallucination).
@@ -70,7 +70,7 @@ class UQEnsemble(UncertaintyQuantifier):
 
         postprocessor : callable, default=None
             A user-defined function that takes a string input and returns a string. Used for postprocessing
-            outputs before black-box comparisons. 
+            outputs before black-box comparisons.
 
         use_best : bool, default=True
             Specifies whether to swap the original response for the uncertainty-minimized response
@@ -103,7 +103,7 @@ class UQEnsemble(UncertaintyQuantifier):
         max_length : int, default=2000
             Specifies the maximum allowed string length. Responses longer than this value will be truncated to
             avoid OutOfMemoryError
-            
+
         return_responses : str, default="all"
             If a postprocessor is used, specifies whether to return only postprocessed responses, only raw responses,
             or both. Specified with 'postprocessed', 'raw', or 'all', respectively.

@@ -22,7 +22,21 @@ import time
 
 class SemanticEntropy(UncertaintyQuantifier):
     def __init__(
-        self, llm=None, postprocessor: Any = None, device: Any = None, use_best: bool = True, best_response_selection: str = "discrete", system_prompt: str = "You are a helpful assistant.", max_calls_per_min: Optional[int] = None, use_n_param: bool = False, sampling_temperature: float = 1.0, verbose: bool = False, nli_model_name: str = "microsoft/deberta-large-mnli", max_length: int = 2000, return_responses: bool = "all") -> None:
+        self,
+        llm=None,
+        postprocessor: Any = None,
+        device: Any = None,
+        use_best: bool = True,
+        best_response_selection: str = "discrete",
+        system_prompt: str = "You are a helpful assistant.",
+        max_calls_per_min: Optional[int] = None,
+        use_n_param: bool = False,
+        sampling_temperature: float = 1.0,
+        verbose: bool = False,
+        nli_model_name: str = "microsoft/deberta-large-mnli",
+        max_length: int = 2000,
+        return_responses: bool = "all",
+    ) -> None:
         """
         Class for computing discrete and token-probability-based semantic entropy and associated confidence scores. For more on semantic entropy, refer to Farquhar et al.(2024) :footcite:`farquhar2024detectinghallucinations`.
 
@@ -34,7 +48,7 @@ class SemanticEntropy(UncertaintyQuantifier):
 
         postprocessor : callable, default=None
             A user-defined function that takes a string input and returns a string. Used for postprocessing
-            outputs before black-box comparisons. 
+            outputs before black-box comparisons.
 
         device: str or torch.device input or torch.device object, default="cpu"
             Specifies the device that NLI model use for prediction. Only applies to 'semantic_negentropy', 'noncontradiction'
@@ -63,7 +77,7 @@ class SemanticEntropy(UncertaintyQuantifier):
 
         verbose : bool, default=False
             Specifies whether to print the index of response currently being scored.
-            
+
         return_responses : str, default="all"
             If a postprocessor is used, specifies whether to return only postprocessed responses, only raw responses,
             or both. Specified with 'postprocessed', 'raw', or 'all', respectively.
@@ -173,7 +187,7 @@ class SemanticEntropy(UncertaintyQuantifier):
                 self.progress_bar.update(progress_task, advance=1)
         time.sleep(0.1)
         confidence_scores = [1 - ne for ne in self.nli_scorer._normalize_entropy(discrete_semantic_entropy)]
-        
+
         if self.use_best:
             self._update_best(best_responses, include_logprobs=self.llm.logprobs)
 
@@ -183,11 +197,8 @@ class SemanticEntropy(UncertaintyQuantifier):
         if tokenprob_semantic_entropy[0] is not None:
             data_to_return["tokenprob_entropy_values"] = tokenprob_semantic_entropy
             data_to_return["tokenprob_confidence_scores"] = [1 - ne for ne in self.nli_scorer._normalize_entropy(tokenprob_semantic_entropy)]
-        
-        result = {
-            "data": data_to_return,
-            "metadata": {"parameters": {"temperature": None if not self.llm else self.llm.temperature, "sampling_temperature": None if not self.sampling_temperature else self.sampling_temperature, "num_responses": self.num_responses}},
-        }
+
+        result = {"data": data_to_return, "metadata": {"parameters": {"temperature": None if not self.llm else self.llm.temperature, "sampling_temperature": None if not self.sampling_temperature else self.sampling_temperature, "num_responses": self.num_responses}}}
 
         self._stop_progress_bar()
         self.progress_bar = None  # if re-run ensure the same progress object is not used
