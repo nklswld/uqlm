@@ -71,10 +71,10 @@ class BlackBoxUQ(UncertaintyQuantifier):
             Specifies which huggingface sentence transformer to use when computing cosine similarity. See
             https://huggingface.co/sentence-transformers?sort_models=likes#models
             for more information. The recommended sentence transformer is 'all-MiniLM-L6-v2'.
-            
+
         postprocessor : callable, default=None
             A user-defined function that takes a string input and returns a string. Used for postprocessing
-            outputs before black-box comparisons. 
+            outputs before black-box comparisons.
 
         return_responses : str, default="all"
             If a postprocessor is used, specifies whether to return only postprocessed responses, only raw responses,
