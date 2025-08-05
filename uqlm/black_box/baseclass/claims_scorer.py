@@ -14,6 +14,17 @@
 
 from abc import ABC, abstractmethod
 from typing import List
+from dataclasses import dataclass
+import numpy as np
+
+@dataclass
+class ClaimsScores:
+    """
+    ClaimsScore is a dataclass that contains the aggregated score and the raw scores for each claim set.
+    """
+    aggregated_score: List[float]
+    raw_scores: List[np.ndarray]
+    
 
 
 class ClaimsScorer(ABC):
@@ -25,8 +36,7 @@ class ClaimsScorer(ABC):
         pass
 
     @abstractmethod
-    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[str]) -> List[float]:
+    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[str]) -> ClaimsScores:
         """Abstract method for metric computation"""
         pass
-
 

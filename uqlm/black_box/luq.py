@@ -12,24 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Any, Tuple
+from typing import List, Any
 import numpy as np
 from uqlm.black_box.nli import NLIScorer
-from uqlm.black_box.baseclass.claims_scorer import ClaimsScorer
+from uqlm.black_box.baseclass.claims_scorer import ClaimsScorer, ClaimsScores
 
 class LUQScorer(ClaimsScorer):
     """
-    LUQScorer is a class that evaluates the LUQ score for a list of claim sets and sampled responses.
+    LUQScorer calculates the LUQ score .
     """
     def __init__(self, nli_model_name: str = "microsoft/deberta-large-mnli", device: Any = None, max_length: int = 2000):
         self.nli_model_name = nli_model_name
         self.device = device
-        self.nli_scorer = NLIScorer(device=device, 
+        self.nli_scorer = NLIScorer(device=device,
                                     nli_model_name=nli_model_name,
                                     max_length=max_length)
         
 
-    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[str]) -> Tuple[List[float], List[np.ndarray]]:
+    def _calc_entailment_score(self, claim: str, sample: str) -> float:
+        nli_proba = self.nli_scorer.predict(sample, claim)
+        nli_label = self.nli_scorer.label_mapping[nli_proba.argmax(axis=1)[0]]
+        if nli_label == "entailment":
+            return 1
+        if nli_label == "neutral":
+            return 0.5
+        return 0
+
+    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[str]) -> ClaimsScores:
         """
         Evaluate the LUQ score for a list of claims and sampled responses.
         """
@@ -42,21 +51,10 @@ class LUQScorer(ClaimsScorer):
             for claim_idx in range(num_claims):
                 claim = claim_set[claim_idx]
                 for sample_idx, sample in enumerate(sampled_responses):
-                    nli_proba = self.nli_scorer.predict(sample, claim)
-                    nli_label = self.nli_scorer.label_mapping[nli_proba.argmax(axis=1)[0]]
-                    if nli_label == "entailment":
-                        score_ = 1
-                    elif nli_label == "neutral":
-                        score_ = 0.5
-                    else:
-                        score_ = 0
-                    print(f"claim: {claim} \n sample: {sample} \n nli_proba: {nli_proba} \n nli_label: {nli_label} \n score: {score_}")
-                    scores[claim_idx, sample_idx] = score_
-                print("--------------------------------")
-            print(scores)
+                    score = self._calc_entailment_score(claim, sample)
+                    scores[claim_idx, sample_idx] = score
             entailment_scores.append(scores)
             scores_per_claim = np.mean(scores, axis=-1)
             luq_score[claim_set_idx] = scores_per_claim.mean()
-            print(f'LUQ score for claim set {claim_set_idx}: {luq_score[claim_set_idx]}')
-        return luq_score, entailment_scores
+        return ClaimsScores(aggregated_score=luq_score, raw_scores=entailment_scores)
     
