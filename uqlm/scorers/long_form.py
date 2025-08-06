@@ -16,13 +16,10 @@ class LongFormUQ(UncertaintyQuantifier):
                  sampling_temperature: float = 1.0,
                  use_n_param: bool = False,
                  max_length: int = 2000,
-                 postprocessor: Optional[Any] = None,
-                 # verbose: bool = False,
-                 
+                 postprocessor: Optional[Any] = None,                 
                 ) -> None:
         super().__init__(llm=generation_llm, device=device, system_prompt=system_prompt, max_calls_per_min=max_calls_per_min, use_n_param=use_n_param, postprocessor=postprocessor)
         self.max_length = max_length
-        # self.verbose = verbose
         self.sampling_temperature = sampling_temperature
         self.nli_model_name = nli_model_name
         self._validate_scorers(scorers)
