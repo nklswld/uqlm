@@ -11,7 +11,17 @@ maintainers = [
     "Viren Bajaj <virenbajaj4@gmail.com>",
     "Zeya Ahmad <zeyahmd@gmail.com>"
 ]
+repository = "https://github.com/cvs-health/langfair"
+homepage = "https://github.com/cvs-health/langfair"
+documentation = "https://cvs-health.github.io/langfair/latest/index.html"
+license = "Apache-2.0 AND MIT"
 readme = "assets/README_PYPI.md"
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
 packages = [
     { include = "uqlm" },
     { include = "uqlm/scorers" },
@@ -20,6 +30,8 @@ packages = [
     { include = "uqlm/resources" },
     { include = "uqlm/utils" },
 ]
+exclude = ["docs", "docs_src"] # never include documentation in build
+keywords = ["LLM", "large language model", "LLM evaluation", "hallucination", "uncertainty quantification"]  # Add your keywords here
 
 [tool.poetry.dependencies]
 python = ">=3.9, <4.0"
