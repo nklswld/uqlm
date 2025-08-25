@@ -79,6 +79,19 @@ class UncertaintyQuantifier:
         This method generates original responses for uncertainty
         estimation. If specified in the child class, all responses are postprocessed
         using the callable function defined by the user.
+
+        Parameters
+        ----------
+        prompts : list of str
+            A list of input prompts for the model.
+
+        progress_bar : rich.progress.Progress, default=None
+            A progress bar object to display progress.
+
+        Returns
+        -------
+        list of str
+            A list of original responses for each prompt.
         """
         generations = await self._generate_responses(prompts, count=1, progress_bar=progress_bar)
         responses = generations["responses"]
@@ -88,20 +101,36 @@ class UncertaintyQuantifier:
             responses = [self.postprocessor(r) for r in responses]
         return responses
 
-    async def generate_candidate_responses(self, prompts: List[str], progress_bar: Optional[Progress] = None) -> List[List[str]]:
+    async def generate_candidate_responses(self, prompts: List[str], num_responses: int = 5, progress_bar: Optional[Progress] = None) -> List[List[str]]:
         """
         This method generates multiple responses for uncertainty
         estimation. If specified in the child class, all responses are postprocessed
         using the callable function defined by the user.
+
+        Parameters
+        ----------
+        prompts : list of str
+            A list of input prompts for the model.
+
+        num_responses : int, default=5
+            The number of sampled responses used to compute consistency.
+
+        progress_bar : rich.progress.Progress, default=None
+            A progress bar object to display progress.
+
+        Returns
+        -------
+        list of list of str
+            A list of sampled responses for each prompt.
         """
         llm_temperature = self.llm.temperature
-        generations = await self._generate_responses(prompts=prompts, count=self.num_responses, temperature=self.sampling_temperature, progress_bar=progress_bar)
+        generations = await self._generate_responses(prompts=prompts, count=num_responses, temperature=self.sampling_temperature, progress_bar=progress_bar)
         tmp_mr, tmp_lp = generations["responses"], generations["logprobs"]
         sampled_responses, self.multiple_logprobs = [], []
         for i in range(len(prompts)):
-            sampled_responses.append(tmp_mr[i * self.num_responses : (i + 1) * self.num_responses])
+            sampled_responses.append(tmp_mr[i * num_responses : (i + 1) * num_responses])
             if len(tmp_lp) == len(tmp_mr):
-                self.multiple_logprobs.append(tmp_lp[i * self.num_responses : (i + 1) * self.num_responses])
+                self.multiple_logprobs.append(tmp_lp[i * num_responses : (i + 1) * num_responses])
         if self.postprocessor:
             self.raw_sampled_responses = sampled_responses
             sampled_responses = [[self.postprocessor(r) for r in m] for m in sampled_responses]
