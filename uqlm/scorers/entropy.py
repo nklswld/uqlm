@@ -14,15 +14,31 @@
 
 
 from typing import Any, List, Optional
+import warnings
 
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
+import time
 
 
 class SemanticEntropy(UncertaintyQuantifier):
-    def __init__(self, llm=None, postprocessor: Any = None, device: Any = None, use_best: bool = True, system_prompt: str = "You are a helpful assistant.", max_calls_per_min: Optional[int] = None, use_n_param: bool = False, sampling_temperature: float = 1.0, verbose: bool = False, nli_model_name: str = "microsoft/deberta-large-mnli", max_length: int = 2000, discrete: bool = True) -> None:
+    def __init__(
+        self,
+        llm=None,
+        postprocessor: Any = None,
+        device: Any = None,
+        use_best: bool = True,
+        best_response_selection: str = "discrete",
+        system_prompt: str = "You are a helpful assistant.",
+        max_calls_per_min: Optional[int] = None,
+        use_n_param: bool = False,
+        sampling_temperature: float = 1.0,
+        verbose: bool = False,
+        nli_model_name: str = "microsoft/deberta-large-mnli",
+        max_length: int = 2000,
+        return_responses: str = "all",
+    ) -> None:
         """
-        Class for computing Discrete Semantic Entropy-based confidence scores. For more on semantic entropy,
-        refer to Farquhar et al.(2024) :footcite:`farquhar2024detectinghallucinations`.
+        Class for computing discrete and token-probability-based semantic entropy and associated confidence scores. For more on semantic entropy, refer to Farquhar et al.(2024) :footcite:`farquhar2024detectinghallucinations`.
 
         Parameters
         ----------
@@ -32,7 +48,7 @@ class SemanticEntropy(UncertaintyQuantifier):
 
         postprocessor : callable, default=None
             A user-defined function that takes a string input and returns a string. Used for postprocessing
-            outputs.
+            outputs before black-box comparisons.
 
         device: str or torch.device input or torch.device object, default="cpu"
             Specifies the device that NLI model use for prediction. Only applies to 'semantic_negentropy', 'noncontradiction'
@@ -41,6 +57,9 @@ class SemanticEntropy(UncertaintyQuantifier):
         use_best : bool, default=True
             Specifies whether to swap the original response for the uncertainty-minimized response
             based on semantic entropy clusters.
+
+        best_response_selection : str, default="discrete"
+            Specifies the type of entropy confidence score to compute best response. Must be one of "discrete" or "token-based".
 
         system_prompt : str or None, default="You are a helpful assistant."
             Optional argument for user to provide custom system prompt
@@ -59,6 +78,10 @@ class SemanticEntropy(UncertaintyQuantifier):
         verbose : bool, default=False
             Specifies whether to print the index of response currently being scored.
 
+        return_responses : str, default="all"
+            If a postprocessor is used, specifies whether to return only postprocessed responses, only raw responses,
+            or both. Specified with 'postprocessed', 'raw', or 'all', respectively.
+
         nli_model_name : str, default="microsoft/deberta-large-mnli"
             Specifies which NLI model to use. Must be acceptable input to AutoTokenizer.from_pretrained() and
             AutoModelForSequenceClassification.from_pretrained()
@@ -73,11 +96,14 @@ class SemanticEntropy(UncertaintyQuantifier):
         self.verbose = verbose
         self.use_best = use_best
         self.sampling_temperature = sampling_temperature
-        self.prompts = None
+        self.best_response_selection = best_response_selection
+        self.return_responses = return_responses
         self._setup_nli(nli_model_name)
-        self.nli_scorer.discrete = discrete
+        self.prompts = None
+        self.logprobs = None
+        self.multiple_logprobs = None
 
-    async def generate_and_score(self, prompts: List[str], num_responses: int = 5) -> UQResult:
+    async def generate_and_score(self, prompts: List[str], num_responses: int = 5, show_progress_bars: Optional[bool] = True) -> UQResult:
         """
         Evaluate discrete semantic entropy score on LLM responses for the provided prompts.
 
@@ -89,6 +115,9 @@ class SemanticEntropy(UncertaintyQuantifier):
         num_responses : int, default=5
             The number of sampled responses used to compute consistency.
 
+        show_progress_bars : bool, default=True
+            If True, displays a progress bar while generating and scoring responses
+
         Returns
         -------
         UQResult
@@ -98,11 +127,19 @@ class SemanticEntropy(UncertaintyQuantifier):
         self.num_responses = num_responses
         self.nli_scorer.num_responses = num_responses
 
-        responses = await self.generate_original_responses(prompts)
-        sampled_responses = await self.generate_candidate_responses(prompts)
-        return self.score(responses=responses, sampled_responses=sampled_responses)
+        if hasattr(self.llm, "logprobs"):
+            self.llm.logprobs = True
+        else:
+            warnings.warn("The provided LLM does not support logprobs access. Only discrete semantic entropy will be computed.")
 
-    def score(self, responses: List[str] = None, sampled_responses: List[List[str]] = None) -> UQResult:
+        self._construct_progress_bar(show_progress_bars)
+        self._display_generation_header(show_progress_bars)
+
+        responses = await self.generate_original_responses(prompts, progress_bar=self.progress_bar)
+        sampled_responses = await self.generate_candidate_responses(prompts, progress_bar=self.progress_bar)
+        return self.score(responses=responses, sampled_responses=sampled_responses, show_progress_bars=show_progress_bars)
+
+    def score(self, responses: List[str] = None, sampled_responses: List[List[str]] = None, show_progress_bars: Optional[bool] = True) -> UQResult:
         """
         Evaluate discrete semantic entropy score on LLM responses for the provided prompts.
 
@@ -115,6 +152,9 @@ class SemanticEntropy(UncertaintyQuantifier):
             A list of lists of sampled model responses for each prompt. These will be used to compute consistency scores by comparing to
             the corresponding response from `responses`. If not provided, sampled_responses will be generated with the provided LLM.
 
+        show_progress_bars : bool, default=True
+            If True, displays a progress bar while scoring responses
+
         Returns
         -------
         UQResult
@@ -126,21 +166,40 @@ class SemanticEntropy(UncertaintyQuantifier):
         self.nli_scorer.num_responses = self.num_responses
 
         n_prompts = len(self.responses)
-        semantic_entropy = [None] * n_prompts
+        discrete_semantic_entropy = [None] * n_prompts
         best_responses = [None] * n_prompts
+        tokenprob_semantic_entropy = [None] * n_prompts
 
-        print("Computing confidence scores...")
-        for i in range(n_prompts):
+        def _process_i(i):
             candidates = [self.responses[i]] + self.sampled_responses[i]
-            tmp = self.nli_scorer._semantic_entropy_process(candidates=candidates, i=i)
-            best_responses[i], semantic_entropy[i], scores = tmp
+            candidate_logprobs = [self.logprobs[i]] + self.multiple_logprobs[i] if (self.logprobs and self.multiple_logprobs) else None
+            tmp = self.nli_scorer._semantic_entropy_process(candidates=candidates, i=i, logprobs_results=candidate_logprobs, best_response_selection=self.best_response_selection)
+            best_responses[i], discrete_semantic_entropy[i], _, tokenprob_semantic_entropy[i] = tmp
 
-        confidence_scores = [1 - ne for ne in self.nli_scorer._normalize_entropy(semantic_entropy)]
+        self._construct_progress_bar(show_progress_bars)
+        self._display_scoring_header(show_progress_bars)
+        if self.progress_bar:
+            progress_task = self.progress_bar.add_task("- Scoring responses with NLI...", total=n_prompts)
 
-        result = {
-            "data": {"responses": best_responses if self.use_best else self.responses, "entropy_values": semantic_entropy, "confidence_scores": confidence_scores, "sampled_responses": self.sampled_responses},
-            "metadata": {"parameters": {"temperature": None if not self.llm else self.llm.temperature, "sampling_temperature": None if not self.sampling_temperature else self.sampling_temperature, "num_responses": self.num_responses}},
-        }
-        if self.prompts:
-            result["data"]["prompts"] = self.prompts
+        for i in range(n_prompts):
+            _process_i(i)
+            if self.progress_bar:
+                self.progress_bar.update(progress_task, advance=1)
+        time.sleep(0.1)
+        confidence_scores = [1 - ne for ne in self.nli_scorer._normalize_entropy(discrete_semantic_entropy)]
+
+        if self.use_best:
+            self._update_best(best_responses, include_logprobs=self.llm.logprobs)
+
+        data_to_return = self._construct_black_box_return_data()
+        data_to_return["discrete_entropy_values"] = discrete_semantic_entropy
+        data_to_return["discrete_confidence_scores"] = confidence_scores
+        if tokenprob_semantic_entropy[0] is not None:
+            data_to_return["tokenprob_entropy_values"] = tokenprob_semantic_entropy
+            data_to_return["tokenprob_confidence_scores"] = [1 - ne for ne in self.nli_scorer._normalize_entropy(tokenprob_semantic_entropy)]
+
+        result = {"data": data_to_return, "metadata": {"parameters": {"temperature": None if not self.llm else self.llm.temperature, "sampling_temperature": None if not self.sampling_temperature else self.sampling_temperature, "num_responses": self.num_responses}}}
+
+        self._stop_progress_bar()
+        self.progress_bar = None  # if re-run ensure the same progress object is not used
         return UQResult(result)

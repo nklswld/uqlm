@@ -17,13 +17,16 @@ import io
 import contextlib
 import pandas as pd
 from typing import Any, Dict, List, Optional
+from rich.progress import Progress, TextColumn
+
 from uqlm.utils.response_generator import ResponseGenerator
 from uqlm.black_box.nli import NLIScorer
 from uqlm.judges.judge import LLMJudge
+from uqlm.utils.display import ConditionalBarColumn, ConditionalTimeElapsedColumn, ConditionalTextColumn, ConditionalSpinnerColumn
 
 DEFAULT_BLACK_BOX_SCORERS = ["semantic_negentropy", "noncontradiction", "exact_match", "cosine_sim"]
 
-BLACK_BOX_SCORERS = DEFAULT_BLACK_BOX_SCORERS + ["bert_score", "bleurt"]
+BLACK_BOX_SCORERS = DEFAULT_BLACK_BOX_SCORERS + ["bert_score"]
 
 WHITE_BOX_SCORERS = ["normalized_probability", "min_probability"]
 
@@ -67,30 +70,32 @@ class UncertaintyQuantifier:
         self.black_box_names = BLACK_BOX_SCORERS
         self.white_box_names = WHITE_BOX_SCORERS
         self.default_black_box_names = DEFAULT_BLACK_BOX_SCORERS
+        self.progress_bar = None
+        self.raw_responses = None
+        self.raw_sampled_responses = None
 
-    async def generate_original_responses(self, prompts: List[str]) -> List[str]:
+    async def generate_original_responses(self, prompts: List[str], progress_bar: Optional[Progress] = None) -> List[str]:
         """
         This method generates original responses for uncertainty
         estimation. If specified in the child class, all responses are postprocessed
         using the callable function defined by the user.
         """
-        print("Generating responses...")
-        generations = await self._generate_responses(prompts, count=1)
+        generations = await self._generate_responses(prompts, count=1, progress_bar=progress_bar)
         responses = generations["responses"]
         self.logprobs = generations["logprobs"]
         if self.postprocessor:
+            self.raw_responses = responses
             responses = [self.postprocessor(r) for r in responses]
         return responses
 
-    async def generate_candidate_responses(self, prompts: List[str]) -> List[List[str]]:
+    async def generate_candidate_responses(self, prompts: List[str], progress_bar: Optional[Progress] = None) -> List[List[str]]:
         """
         This method generates multiple responses for uncertainty
         estimation. If specified in the child class, all responses are postprocessed
         using the callable function defined by the user.
         """
         llm_temperature = self.llm.temperature
-        print("Generating candidate responses...")
-        generations = await self._generate_responses(prompts=prompts, count=self.num_responses, temperature=self.sampling_temperature)
+        generations = await self._generate_responses(prompts=prompts, count=self.num_responses, temperature=self.sampling_temperature, progress_bar=progress_bar)
         tmp_mr, tmp_lp = generations["responses"], generations["logprobs"]
         sampled_responses, self.multiple_logprobs = [], []
         for i in range(len(prompts)):
@@ -98,21 +103,27 @@ class UncertaintyQuantifier:
             if len(tmp_lp) == len(tmp_mr):
                 self.multiple_logprobs.append(tmp_lp[i * self.num_responses : (i + 1) * self.num_responses])
         if self.postprocessor:
+            self.raw_sampled_responses = sampled_responses
             sampled_responses = [[self.postprocessor(r) for r in m] for m in sampled_responses]
         self.llm.temperature = llm_temperature
         return sampled_responses
 
-    async def _generate_responses(self, prompts: List[str], count: int, temperature: float = None) -> List[str]:
+    async def _generate_responses(self, prompts: List[str], count: int, temperature: float = None, progress_bar: Optional[Progress] = None) -> List[str]:
         """Helper function to generate responses with LLM"""
-        if self.llm is None:
-            raise ValueError("""llm must be provided to generate responses.""")
-        llm_temperature = self.llm.temperature
-        if temperature:
-            self.llm.temperature = temperature
-        generator_object = ResponseGenerator(llm=self.llm, max_calls_per_min=self.max_calls_per_min, use_n_param=self.use_n_param)
-        with contextlib.redirect_stdout(io.StringIO()):
-            generations = await generator_object.generate_responses(prompts=prompts, count=count, system_prompt=self.system_prompt)
-        self.llm.temperature = llm_temperature
+        try:
+            if self.llm is None:
+                raise ValueError("""llm must be provided to generate responses.""")
+            llm_temperature = self.llm.temperature
+            if temperature:
+                self.llm.temperature = temperature
+            generator_object = ResponseGenerator(llm=self.llm, max_calls_per_min=self.max_calls_per_min, use_n_param=self.use_n_param)
+            with contextlib.redirect_stdout(io.StringIO()):
+                generations = await generator_object.generate_responses(prompts=prompts, count=count, system_prompt=self.system_prompt, progress_bar=progress_bar)
+            self.llm.temperature = llm_temperature
+        except Exception:
+            if progress_bar:
+                progress_bar.stop()
+            raise
         return {"responses": generations["data"]["response"], "logprobs": generations["metadata"]["logprobs"]}
 
     def _construct_judge(self, llm: Any = None) -> LLMJudge:
@@ -132,21 +143,90 @@ class UncertaintyQuantifier:
         """Set up NLI scorer"""
         self.nli_scorer = NLIScorer(nli_model_name=self.nli_model_name, device=self.device, max_length=self.max_length, verbose=self.verbose)
 
-    def _update_best(self, best_responses: List[str]) -> None:
+    def _update_best(self, best_responses: List[str], include_logprobs: bool = True) -> None:
         """Updates best"""
         self.original_responses = self.responses.copy()
         for i, response in enumerate(self.responses):
             all_candidates = [response] + self.sampled_responses[i]
-            all_logprobs = [self.logprobs[i]] + self.multiple_logprobs[i]
-            best_logprobs = all_logprobs[all_candidates.index(best_responses[i])]
+            index_of_best = all_candidates.index(best_responses[i])
 
             all_candidates.remove(best_responses[i])
             self.responses[i] = best_responses[i]
             self.sampled_responses[i] = all_candidates
 
-            all_logprobs.remove(best_logprobs)
-            self.logprobs[i] = best_logprobs
-            self.multiple_logprobs[i] = all_logprobs
+            if include_logprobs:
+                all_logprobs = [self.logprobs[i]] + self.multiple_logprobs[i]
+                best_logprobs = all_logprobs[index_of_best]
+                all_logprobs.remove(best_logprobs)
+                self.logprobs[i] = best_logprobs
+                self.multiple_logprobs[i] = all_logprobs
+
+            if self.postprocessor:
+                all_raw_candidates = [self.raw_responses[i]] + self.raw_sampled_responses[i]
+                best_raw_response = all_raw_candidates[index_of_best]
+                all_raw_candidates.remove(best_raw_response)
+                self.raw_responses[i] = best_raw_response
+                self.raw_sampled_responses[i] = all_raw_candidates
+
+    def _construct_black_box_return_data(self):
+        """Helper function to prepare black box return data"""
+        data_to_return = {"responses": self.responses, "sampled_responses": self.sampled_responses}
+        if self.postprocessor:
+            if self.return_responses == "all":
+                data_to_return["raw_responses"] = self.raw_responses
+                data_to_return["raw_sampled_responses"] = self.raw_sampled_responses
+            elif self.return_responses == "raw":
+                data_to_return["responses"] = self.raw_responses
+                data_to_return["sampled_responses"] = self.raw_sampled_responses
+
+        if self.prompts:
+            data_to_return["prompts"] = self.prompts
+
+        return data_to_return
+
+    def _construct_progress_bar(self, show_progress_bars: bool, _existing_progress_bar: Any = None) -> None:
+        """Constructs and starts progress bar"""
+        if _existing_progress_bar:
+            self.progress_bar = _existing_progress_bar
+            self.progress_bar.start()
+
+        elif show_progress_bars and not self.progress_bar:
+            completion_text = "[progress.percentage]{task.completed}/{task.total}"
+            self.progress_bar = Progress(ConditionalSpinnerColumn(), TextColumn("[progress.description]{task.description}"), ConditionalBarColumn(), ConditionalTextColumn(completion_text), ConditionalTimeElapsedColumn())
+            self.progress_bar.start()
+
+    def _display_generation_header(self, show_progress_bars: bool, white_box: bool = False) -> None:
+        """Displays generation header"""
+        if show_progress_bars:
+            self.progress_bar.start()
+            display_text = "🤖 Generation" if not white_box else "🤖📈 Generation & Scoring"
+            self.progress_bar.add_task(display_text)
+
+    def _display_scoring_header(self, show_progress_bars: bool) -> None:
+        """Displays scoring header"""
+        if show_progress_bars:
+            self.progress_bar.start()
+            self.progress_bar.add_task("")
+            self.progress_bar.add_task("📈 Scoring")
+
+    def _display_optimization_header(self, show_progress_bars: bool) -> None:
+        """Displays optimization header"""
+        if show_progress_bars:
+            self.progress_bar.start()
+            self.progress_bar.add_task("")
+            self.progress_bar.add_task("⚙️ Optimization")
+
+    def _stop_progress_bar(self, _existing_progress_bar: Any = None) -> None:
+        """Stop progress bar"""
+        if self.progress_bar:
+            self.progress_bar.stop()
+        if not _existing_progress_bar:
+            self.progress_bar = None
+
+    def _start_progress_bar(self) -> None:
+        """Start progress bar"""
+        if self.progress_bar:
+            self.progress_bar.start()
 
 
 class UQResult:
@@ -177,6 +257,6 @@ class UQResult:
         """
         Returns result in pd.DataFrame
         """
-        rename_dict = {col: col[:-1] for col in self.result_dict["data"].keys() if col.endswith("s") and col != "sampled_responses"}
+        rename_dict = {col: col[:-1] for col in self.result_dict["data"].keys() if col.endswith("s") and col not in ["sampled_responses", "raw_sampled_responses"]}
 
         return pd.DataFrame(self.result_dict["data"]).rename(columns=rename_dict)
