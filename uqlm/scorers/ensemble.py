@@ -166,7 +166,7 @@ class UQEnsemble(UncertaintyQuantifier):
 
         responses = await self.generate_original_responses(prompts, progress_bar=self.progress_bar)
         if self.black_box_components:
-            sampled_responses = await self.generate_candidate_responses(prompts, progress_bar=self.progress_bar)
+            sampled_responses = await self.generate_candidate_responses(prompts, num_responses=self.num_responses, progress_bar=self.progress_bar)
         else:
             sampled_responses = None
 
