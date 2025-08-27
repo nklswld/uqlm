@@ -25,7 +25,7 @@ def scale(values, upper, lower):
     return [lower + (val - min_v) * (upper - lower) / (max_v - min_v) for val in values]
 
 
-def plot_model_accuracies(scores: ArrayLike, correct_indicators: ArrayLike, thresholds: ArrayLike = np.linspace(0, 0.9, num=10), axis_buffer: float = 0.1, title: str = "LLM Accuracy by Confidence Score Threshold", write_path: Optional[str] = None, bar_width = 0.05, display_percentage: bool = False):
+def plot_model_accuracies(scores: ArrayLike, correct_indicators: ArrayLike, thresholds: ArrayLike = np.linspace(0, 0.9, num=10), axis_buffer: float = 0.1, title: str = "LLM Accuracy by Confidence Score Threshold", write_path: Optional[str] = None, bar_width=0.05, display_percentage: bool = False):
     """
     Parameters
     ----------
@@ -62,7 +62,7 @@ def plot_model_accuracies(scores: ArrayLike, correct_indicators: ArrayLike, thre
         raise ValueError("scores and correct_indicators must be the same length")
 
     accuracies, sample_sizes = [], []
-    denominator = n_samples/100 if display_percentage else 1
+    denominator = n_samples / 100 if display_percentage else 1
     for t in thresholds:
         grades_t = [correct_indicators[i] for i in range(0, len(scores)) if scores[i] >= t]
         accuracies.append(np.mean(grades_t))
@@ -91,7 +91,7 @@ def plot_model_accuracies(scores: ArrayLike, correct_indicators: ArrayLike, thre
     for p in pps1:
         height = p.get_height()
         s_ = "{:.0f} %".format(sample_sizes[count]) if display_percentage else "{:.0f}".format(sample_sizes[count])
-        ax.text(x=p.get_x() + p.get_width() / 2, y=height - (height - min_acc * (1 - axis_buffer))/50, s=s_, ha="center", fontsize=8, rotation=90, va="top")
+        ax.text(x=p.get_x() + p.get_width() / 2, y=height - (height - min_acc * (1 - axis_buffer)) / 50, s=s_, ha="center", fontsize=8, rotation=90, va="top")
         count += 1
 
     # Set x and y ticks, limits, labels, and title
