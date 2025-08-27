@@ -91,7 +91,7 @@ def plot_model_accuracies(scores: ArrayLike, correct_indicators: ArrayLike, thre
     for p in pps1:
         height = p.get_height()
         s_ = "{:.0f} %".format(sample_sizes[count]) if display_percentage else "{:.0f}".format(sample_sizes[count])
-        ax.text(x=p.get_x() + p.get_width() / 2, y=height - max_acc/100*(len(s_)+0.5), s=s_, ha="center", fontsize=8, rotation=90)
+        ax.text(x=p.get_x() + p.get_width() / 2, y=height - (height - min_acc * (1 - axis_buffer))/50, s=s_, ha="center", fontsize=8, rotation=90, va="top")
         count += 1
 
     # Set x and y ticks, limits, labels, and title
