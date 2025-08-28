@@ -270,10 +270,6 @@ class UQResult:
         """
         self.data = result.get("data")
         self.metadata = result.get("metadata")
-        self.parameters = result.get("parameters")
-        self.confidence_scores = self.data.get("confidence_scores")
-        self.responses = self.data.get("responses")
-        self.sampled_responses = None if not self.data.get("responses") else self.data.get("responses")
         self.result_dict = result
 
     def to_dict(self) -> Dict[str, Any]:
