@@ -313,9 +313,9 @@ class UQResult:
         black_box_scorers = ["semantic_negentropy", "noncontradiction", "exact_match", "cosine_sim"]
         white_box_scorers = ["normalized_probability", "min_probability"]
         judges = ["judge_"]
-        ensemble = ["ensemble"]
+        ensemble = ["ensemble_scores"]
         ignore_columns = ["prompts", "responses", "sampled_responses", "raw_sampled_responses", "raw_responses", "logprobs"]
-        method_names = {"semantic_negentropy": "Semantic Negentropy", "noncontradiction": "Non-Contradiction", "exact_match": "Exact Match", "cosine_sim": "Cosine Similarity", "normalized_probability": "Normalized Probability", "min_probability": "Min Probability", "ensemble": "Ensemble"}
+        method_names = {"semantic_negentropy": "Semantic Negentropy", "noncontradiction": "Non-Contradiction", "exact_match": "Exact Match", "cosine_sim": "Cosine Similarity", "normalized_probability": "Normalized Probability", "min_probability": "Min Probability", "ensemble_scores": "Ensemble"}
         # Initialize scores dictionary
         scores = {"Black-box": {}, "White-box": {}, "Judges": {}, "Ensemble": {}}
         for col in self.data.keys():
