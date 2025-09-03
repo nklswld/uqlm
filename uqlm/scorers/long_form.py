@@ -1,6 +1,6 @@
 from typing import Any, List, Optional
 from langchain_core.language_models.chat_models import BaseChatModel
-from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
+from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult, DEFAULT_LONG_FORM_SCORERS
 from uqlm.black_box import LUQScorer
 from uqlm.utils.postprocessors import claims_postprocessor
 
@@ -30,16 +30,15 @@ class LongFormUQ(UncertaintyQuantifier):
         self.sampled_responses = None
         self.num_responses = None
         self.scores_dict = {}
+        self.default_long_form_scorers = DEFAULT_LONG_FORM_SCORERS
 
     def _validate_scorers(self, scorers: Optional[List[str]]) -> None:
         self.scorer_objects = {}
         if scorers is None:
-            scorers = self.default_long_form_names
+            scorers = self.default_long_form_scorers
         for scorer in scorers:
-            if scorer == "luq":
-                self.scorer_objects["luq"] = LUQScorer(nli_model_name=self.nli_model_name, device=self.device, max_length=self.max_length)
-            elif scorer == "graph_based":
-                pass
+            if scorer == "luq_atomic":
+                self.scorer_objects["luq_atomic"] = LUQScorer(nli_model_name=self.nli_model_name, device=self.device, max_length=self.max_length)
             else:
                 raise ValueError(f"Invalid scorer: {scorer}")
         self.scorers = scorers
@@ -88,7 +87,6 @@ class LongFormUQ(UncertaintyQuantifier):
         self.claim_sets = claims_postprocessor(llm=self.claim_decomposition_llm, responses=responses, progress=False)
         self._construct_progress_bar(show_progress_bars)
         self._display_scoring_header(show_progress_bars and _display_header)
-        
         for scorer_key, scorer_object in self.scorer_objects.items():
             self.scores_dict[scorer_key] = scorer_object.evaluate(self.claim_sets, self.sampled_responses, progress_bar=self.progress_bar).to_dict()
         result = self._construct_result()
