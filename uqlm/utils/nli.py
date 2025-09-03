@@ -34,7 +34,7 @@ class NLI():
         self.model = model.to(self.device) if self.device else model
         self.label_mapping = ["contradiction", "neutral", "entailment"]
 
-    def predict(self, hypothesis: str, premise: str) -> Any:
+    def predict(self, hypothesis: str, premise: str, return_probabilities: bool = True) -> Any:
         """
         This method compute probability of contradiction on the provide inputs.
 
@@ -45,11 +45,15 @@ class NLI():
 
         premise : str
             An input for the sequence classification DeBERTa model.
+        
+        return_probabilities : bool, default=True
+            If True, return probabilities for each label. If False, return True if the hypothesis entails the premise, False otherwise.
 
         Returns
         -------
-        numpy.ndarray
-            Probabilities computed by NLI model for each label
+        numpy.ndarray or bool
+            If return_probabilities is True, return probabilities for each label. 
+            If False, return True if the hypothesis entails the premise, False otherwise.
         """
         if len(hypothesis) > self.max_length or len(premise) > self.max_length:
             warnings.warn("Maximum response length exceeded for NLI comparison. Truncation will occur. To adjust, change the value of max_length")
@@ -60,4 +64,7 @@ class NLI():
         logits = self.model(**encoded_inputs).logits
         np_logits = logits.detach().cpu().numpy() if self.device else logits.detach().numpy()
         probabilites = np.exp(np_logits) / np.exp(np_logits).sum(axis=-1, keepdims=True)
-        return probabilites
+        if return_probabilities:
+            return probabilites
+        else:
+            return self.label_mapping[probabilites.argmax()] == "entailment"
