@@ -223,8 +223,8 @@ class BlackBoxUQ(UncertaintyQuantifier):
                 if scorer == "bleurt":
                     print("bleurt is deprecated as of v0.2.0")
                 raise ValueError(
-                    """
-                    scorers must be one of ['semantic_negentropy', 'noncontradiction', 'exact_match', 'bert_score', 'cosine_sim']
+                    f"""
+                    Invalid scorer: {scorer}. Must be one of ['semantic_negentropy', 'noncontradiction', 'exact_match', 'bert_score', 'cosine_sim']
                     """
                 )
         self.scorers = scorers

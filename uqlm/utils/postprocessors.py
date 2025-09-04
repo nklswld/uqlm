@@ -41,41 +41,33 @@ def math_postprocessor(input_string: str) -> str:
 
 
 def claims_postprocessor(llm: BaseChatModel, responses: list[str] | str, progress: bool = True) -> list[dict]:
-        """
-        Parameters
-        ----------
-        responses: list[str] | str
-            LLM response that will be decomposed into independent claims.
-        progress: bool
-            Whether to show a progress bar.
-        """
-        if isinstance(responses, str):
-            responses = [responses]
-        if progress:
-            with Progress(
-                TextColumn("{task.description}"),
-                BarColumn(),
-                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                TextColumn("({task.completed}/{task.total})"),
-                TimeElapsedColumn(),
-                console=Console()
-            ) as progress:
-                claims = []
-                task = progress.add_task("Processing", total=len(responses))
-                for response in responses:
-                    progress.update(task, description="Processing response(s)...")
-                    res = llm.invoke(get_claim_breakdown_template(response))
-                    if res.content:
-                        claims.append(re.findall(r"### (.*)", res.content))
-                    progress.update(task, advance=1)
-        else:
+    """
+    Parameters
+    ----------
+    responses: list[str] | str
+        LLM response that will be decomposed into independent claims.
+    progress: bool
+        Whether to show a progress bar.
+    """
+    if isinstance(responses, str):
+        responses = [responses]
+    if progress:
+        with Progress(TextColumn("{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"), TextColumn("({task.completed}/{task.total})"), TimeElapsedColumn(), console=Console()) as progress:
             claims = []
+            task = progress.add_task("Processing", total=len(responses))
             for response in responses:
+                progress.update(task, description="Processing response(s)...")
                 res = llm.invoke(get_claim_breakdown_template(response))
                 if res.content:
                     claims.append(re.findall(r"### (.*)", res.content))
-        return claims
-
+                progress.update(task, advance=1)
+    else:
+        claims = []
+        for response in responses:
+            res = llm.invoke(get_claim_breakdown_template(response))
+            if res.content:
+                claims.append(re.findall(r"### (.*)", res.content))
+    return claims
 
 
 # def claims_postprocessor(input_string: str) -> str:

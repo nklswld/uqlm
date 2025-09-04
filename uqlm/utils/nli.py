@@ -4,12 +4,8 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import numpy as np
 
 
-class NLI():
-    def __init__(self,
-                 nli_model_name: str = "microsoft/deberta-large-mnli",
-                 max_length: int = 2000,
-                 device: Any = None,
-                 ) -> None:
+class NLI:
+    def __init__(self, nli_model_name: str = "microsoft/deberta-large-mnli", max_length: int = 2000, device: Any = None) -> None:
         """
         A class to compute NLI predictions.
 
@@ -22,7 +18,7 @@ class NLI():
         max_length : int, default=2000
             Specifies the maximum allowed string length. Responses longer than this value will be truncated to
             avoid OutOfMemoryError
-        
+
         device : torch.device input or torch.device object, default=None
             Specifies the device that classifiers use for prediction. Set to "cuda" for classifiers to be able to
             leverage the GPU.
@@ -45,14 +41,14 @@ class NLI():
 
         premise : str
             An input for the sequence classification DeBERTa model.
-        
+
         return_probabilities : bool, default=True
             If True, return probabilities for each label. If False, return True if the hypothesis entails the premise, False otherwise.
 
         Returns
         -------
         numpy.ndarray or bool
-            If return_probabilities is True, return probabilities for each label. 
+            If return_probabilities is True, return probabilities for each label.
             If False, return True if the hypothesis entails the premise, False otherwise.
         """
         if len(hypothesis) > self.max_length or len(premise) > self.max_length:
