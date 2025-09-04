@@ -135,14 +135,17 @@ class WhiteBoxUQ(UncertaintyQuantifier):
 
     def _validate_scorers(self, scorers: List[str]) -> None:
         """Validate scorer list"""
-        for scorer in scorers:
-            if scorer not in ["min_probability", "normalized_probability"]:
-                raise ValueError(
-                    f"""
-                    Invalid scorer: {scorer}. Must be one of ["min_probability", "normalized_probability"]
-                    """
-                )
-        self.scorers = scorers if scorers else self.white_box_names
+        if not scorers:
+            self.scorers = self.white_box_names
+        else:
+            for scorer in scorers:
+                if scorer not in ["min_probability", "normalized_probability"]:
+                    raise ValueError(
+                        f"""
+                        Invalid scorer: {scorer}. Must be one of ["min_probability", "normalized_probability"]
+                        """
+                    )
+            self.scorers = scorers
 
     @staticmethod
     def _get_probs(logprobs):
