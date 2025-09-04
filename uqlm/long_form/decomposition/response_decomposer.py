@@ -44,7 +44,7 @@ class ResponseDecomposer:
         progress_bar : rich.progress.Progress, default=None
             If provided, displays a progress bar while scoring responses
         """
-        if not self.llm:
+        if not self.claim_decomposition_llm:
             raise ValueError("llm must be provided to decompose responses into claims")
         if progress_bar:
             self.progress_task = progress_bar.add_task(" - Decomposing responses into claims...", total=len(responses))

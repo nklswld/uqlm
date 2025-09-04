@@ -88,10 +88,5 @@ class LUQScorer(ClaimScorer):
         return claim_scores_.mean(), claim_scores_, scores
 
     def _compute_entailment_score(self, claim: str, sample: str) -> float:
-        nli_proba = self.nli.predict(hypothesis=sample, premise=claim)
-        nli_label = self.nli.label_mapping[nli_proba.argmax(axis=1)[0]]
-        if nli_label == "entailment":
-            return 1
-        if nli_label == "neutral":
-            return 0.5
-        return 0
+        nli_probabilities = self.nli.predict(hypothesis=sample, premise=claim)
+        return nli_probabilities[:, 2]

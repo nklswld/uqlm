@@ -2,8 +2,8 @@ import warnings
 from typing import Any, List, Optional
 from langchain_core.language_models.chat_models import BaseChatModel
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult, DEFAULT_LONG_FORM_SCORERS
-from uqlm.black_box import LUQScorer
-from uqlm.longform.decomposition.decomposer import ResponseDecomposer
+from uqlm.long_form.black_box import LUQScorer
+from uqlm.long_form.decomposition import ResponseDecomposer
 
 SENTENCE_BASED_SCORERS = ["luq"]
 CLAIM_BASED_SCORERS = ["luq_atomic"]
