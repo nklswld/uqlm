@@ -17,15 +17,28 @@ import numpy as np
 import time
 from rich.progress import Progress
 from uqlm.utils.nli import NLI
-from uqlm.black_box.baseclass.claims_scorer import ClaimScorer, ClaimScores
+from uqlm.long_form.black_box.baseclass.claims_scorer import ClaimScorer, ClaimScores
 
 
 class LUQScorer(ClaimScorer):
-    """
-    LUQScorer calculates the LUQ or LUQ-Atomic scores.
-    """
-
     def __init__(self, nli_model_name: str = "microsoft/deberta-large-mnli", device: Any = None, max_length: int = 2000):
+        """
+        LUQScorer calculates the LUQ or LUQ-Atomic scores.
+
+        Parameters
+        ----------
+        device : torch.device input or torch.device object, default=None
+            Specifies the device that classifiers use for prediction. Set to "cuda" for classifiers to be able to
+            leverage the GPU.
+
+        nli_model_name : str, default="microsoft/deberta-large-mnli"
+            Specifies which NLI model to use. Must be acceptable input to AutoTokenizer.from_pretrained() and
+            AutoModelForSequenceClassification.from_pretrained()
+
+        max_length : int, default=2000
+            Specifies the maximum allowed string length. Responses longer than this value will be truncated to
+            avoid OutOfMemoryError
+        """
         self.nli_model_name = nli_model_name
         self.device = device
         self.nli = NLI(device=device, nli_model_name=nli_model_name, max_length=max_length)
@@ -33,9 +46,25 @@ class LUQScorer(ClaimScorer):
     def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[List[str]], progress_bar: Optional[Progress] = None) -> ClaimScores:
         """
         Evaluate the LUQ score and claim scores for a list of claims from each original response and sampled responses.
+
+        Parameters
+        ----------
+        claim_sets : list of list of strings
+            List of original responses decomposed into lists of either claims or sentences
+
+        sampled_responses : list of list of strings
+            Candidate responses to be compared to the decomposed original responses
+
+        progress_bar : rich.progress.Progress, default=None
+            If provided, displays a progress bar while scoring responses
+
+        Returns
+        -------
+        List of float
+            Mean LUQ or LUQ-Atomic values
         """
         if progress_bar:
-            progress_task = progress_bar.add_task("  - Scoring claim sets with LUQ...", total=len(claim_sets))
+            progress_task = progress_bar.add_task("  - Scoring claim/sentence sets with LUQ...", total=len(claim_sets))
         luq_scores = np.zeros(len(claim_sets))
         entailment_scores = []
         claim_scores = []

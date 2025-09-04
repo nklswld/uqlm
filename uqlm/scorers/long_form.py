@@ -3,17 +3,18 @@ from typing import Any, List, Optional
 from langchain_core.language_models.chat_models import BaseChatModel
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult, DEFAULT_LONG_FORM_SCORERS
 from uqlm.black_box import LUQScorer
-from uqlm.utils.decomposer import ResponseDecomposer
+from uqlm.longform.decomposition.decomposer import ResponseDecomposer
 
 SENTENCE_BASED_SCORERS = ["luq"]
 CLAIM_BASED_SCORERS = ["luq_atomic"]
+
 
 class LongFormUQ(UncertaintyQuantifier):
     def __init__(
         self,
         llm: Optional[BaseChatModel] = None,
         scorers: Optional[List[str]] = None,
-        claim_decomposition_llm: Optional[BaseChatModel],
+        claim_decomposition_llm: Optional[BaseChatModel] = None,
         device: Any = None,
         nli_model_name: str = "microsoft/deberta-large-mnli",
         system_prompt: str = "You are a helpful assistant.",
@@ -25,7 +26,7 @@ class LongFormUQ(UncertaintyQuantifier):
         return_responses: str = "all",
     ) -> None:
         """
-        Class for longform uncertainty quantification. Implements claimwise analogs of other UQ-based 
+        Class for longform uncertainty quantification. Implements claimwise analogs of other UQ-based
         scorers for improved performance with longform tasks.
 
         Parameters
@@ -36,11 +37,11 @@ class LongFormUQ(UncertaintyQuantifier):
 
         scorers : subset of {"luq", "luq_atomic"}, default=None
             Specifies which black box (consistency) scorers to include. If None, defaults to
-            ["semantic_negentropy", "noncontradiction", "exact_match", "cosine_sim"]. 
-            
+            ["semantic_negentropy", "noncontradiction", "exact_match", "cosine_sim"].
+
         claim_decomposition_llm : langchain `BaseChatModel`, default=None
-            A langchain llm `BaseChatModel` to be used for decomposing responses into individual claims 
-            or 'factoids'. If a scorer that requires claim decomposition (e.g., "luq_atomic") is specified 
+            A langchain llm `BaseChatModel` to be used for decomposing responses into individual claims
+            or 'factoids'. If a scorer that requires claim decomposition (e.g., "luq_atomic") is specified
             and claim_decomposition_llm is None, the provided `llm` will be used for claim decomposition.
 
         device: str or torch.device input or torch.device object, default="cpu"
@@ -77,8 +78,8 @@ class LongFormUQ(UncertaintyQuantifier):
             Specifies the maximum allowed string length. Responses longer than this value will be truncated to
             avoid OutOfMemoryError
         """
-        
-        super().__init__(llm=generation_llm, device=device, system_prompt=system_prompt, max_calls_per_min=max_calls_per_min, use_n_param=use_n_param, postprocessor=postprocessor)
+
+        super().__init__(llm=llm, device=device, system_prompt=system_prompt, max_calls_per_min=max_calls_per_min, use_n_param=use_n_param, postprocessor=postprocessor)
         self.max_length = max_length
         self.sampling_temperature = sampling_temperature
         self.nli_model_name = nli_model_name
@@ -150,22 +151,22 @@ class LongFormUQ(UncertaintyQuantifier):
         self.responses = responses
         self.sampled_responses = sampled_responses
         self.num_responses = len(sampled_responses[0])
-        
+
         self._construct_progress_bar(show_progress_bars)
         self._display_scoring_header(show_progress_bars and _display_header)
 
         if not set(self.scorers).isdisjoint(CLAIM_BASED_SCORERS):
-            self.claim_sets = await decomposer.decompose_claims(responses=responses, progress_bar=self.progress_bar)
+            self.claim_sets = await self.decomposer.decompose_claims(responses=responses, progress_bar=self.progress_bar)
         if not set(self.scorers).isdisjoint(SENTENCE_BASED_SCORERS):
-            self.sentence_sets = await decomposer.decompose_sentences(responses=responses, progress_bar=self.progress_bar)
-            
+            self.sentence_sets = await self.decomposer.decompose_sentences(responses=responses, progress_bar=self.progress_bar)
+
         self.scores_dict = {k: [] for k in self.scorer_objects}
         for scorer_key, scorer_object in self.scorer_objects.items():
             decomposed_responses = self.claim_sets if scorer_key in CLAIM_BASED_SCORERS else self.sentence_sets
             self.scores_dict[scorer_key] = scorer_object.evaluate(decomposed_responses, sampled_responses=self.sampled_responses, progress_bar=self.progress_bar).to_dict()
         result = self._construct_result()
         self._stop_progress_bar()
-        self.progress_bar = None 
+        self.progress_bar = None
         return result
 
     def _construct_result(self) -> Any:
@@ -180,12 +181,7 @@ class LongFormUQ(UncertaintyQuantifier):
     def _validate_scorers(self, scorers: Optional[List[str]]) -> None:
         """Validate scorers"""
         if "luq_atomic" in scorers and "luq" in scorers:
-            warnings.warn(
-                "Redundant metrics configuration: Using both 'luq' and 'luq_atomic' "
-                "increases computation time without providing additional information. "
-                "Use only one or the other for substantially faster runtime.",
-                UserWarning
-            )
+            warnings.warn("Redundant metrics configuration: Using both 'luq' and 'luq_atomic' increases computation time without providing additional information. Use only one or the other for substantially faster runtime.", UserWarning)
         self.scorer_objects = {}
         if scorers is None:
             scorers = self.default_long_form_scorers

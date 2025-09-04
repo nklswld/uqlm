@@ -15,6 +15,7 @@
 
 from uqlm.utils.plots import plot_model_accuracies
 from uqlm.utils.dataloader import load_dataset, load_example_dataset
+from uqlm.utils.decomposer import ResponseDecomposer
 from uqlm.utils.postprocessors import math_postprocessor, claims_postprocessor
 from uqlm.utils.response_generator import ResponseGenerator
 from uqlm.utils.tuner import Tuner
@@ -22,4 +23,4 @@ from uqlm.utils.llm_config import save_llm_config, load_llm_config
 from uqlm.utils.display import ConditionalBarColumn, ConditionalTimeElapsedColumn, ConditionalTextColumn, ConditionalSpinnerColumn
 from uqlm.utils.nli import NLI
 
-__all__ = ["plot_model_accuracies", "load_example_dataset", "load_dataset", "load_example_dataset", "math_postprocessor", "ResponseGenerator", "Tuner", "save_llm_config", "load_llm_config", "ConditionalBarColumn", "ConditionalTimeElapsedColumn", "ConditionalTextColumn", "ConditionalSpinnerColumn", "claims_postprocessor", "NLI"]
+__all__ = ["plot_model_accuracies", "load_example_dataset", "load_dataset", "load_example_dataset", "math_postprocessor", "ResponseGenerator", "Tuner", "save_llm_config", "load_llm_config", "ConditionalBarColumn", "ConditionalTimeElapsedColumn", "ConditionalTextColumn", "ConditionalSpinnerColumn", "claims_postprocessor", "NLI", "ResponseDecomposer"]

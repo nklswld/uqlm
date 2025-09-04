@@ -132,7 +132,7 @@ class WhiteBoxUQ(UncertaintyQuantifier):
     def avg_logprob(self, logprobs: List[Dict[str, Any]]) -> float:
         """Compute average logprob"""
         return np.mean(self.get_logprobs(logprobs))
-    
+
     def _validate_scorers(self, scorers: List[str]) -> None:
         """Validate scorer list"""
         for scorer in scorers:

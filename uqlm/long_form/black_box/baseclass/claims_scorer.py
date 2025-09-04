@@ -21,7 +21,7 @@ import numpy as np
 @dataclass
 class ClaimScores:
     """
-    ClaimsScore is a dataclass that contains the aggregated score and the raw scores for each claim set.
+    ClaimsScores is a dataclass that contains the aggregated score and the raw scores for each claim set.
     """
 
     response_scores: List[float]

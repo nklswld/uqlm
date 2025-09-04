@@ -12,11 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from uqlm.black_box.bert import BertScorer
+from uqlm.long_form.black_box.baseclass.claims_scorer import ClaimScores, ClaimScorer
 
-from uqlm.black_box.bleurt import BLEURTScorer  # deprecated in v0.2.0
-from uqlm.black_box.cosine import CosineScorer
-from uqlm.black_box.match import MatchScorer
-from uqlm.black_box.nli import NLIScorer
-
-__all__ = ["BertScorer", "CosineScorer", "BLEURTScorer", "MatchScorer", "NLIScorer"]
+__all__ = ["ClaimScores", "ClaimScorer"]
