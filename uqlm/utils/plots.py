@@ -35,7 +35,7 @@ def scale(values, upper, lower):
     return [lower + (val - min_v) * (upper - lower) / (max_v - min_v) for val in values]
 
 
-def plot_model_accuracies(uq_result: UQResult, correct_indicators: ArrayLike, scorers_name: str, thresholds: ArrayLike = np.linspace(0, 0.9, num=10), axis_buffer: float = 0.1, title: str = "LLM Accuracy by Confidence Score Threshold", write_path: Optional[str] = None, bar_width=0.05, display_percentage: bool = False, fontsize: int = 10, fontname: str = "Arial"):
+def plot_model_accuracies(uq_result: UQResult, correct_indicators: ArrayLike, scorers_name: str, thresholds: ArrayLike = np.linspace(0, 0.9, num=10), axis_buffer: float = 0.1, title: str = "LLM Accuracy by Confidence Score Threshold", write_path: Optional[str] = None, bar_width=0.05, display_percentage: bool = False, fontsize: int = 10, fontname: str = None):
     """
     Parameters
     ----------
@@ -69,7 +69,7 @@ def plot_model_accuracies(uq_result: UQResult, correct_indicators: ArrayLike, sc
     fontsize : int, default=10
         The font size of the plot
 
-    fontname : str, default="Arial"
+    fontname : str, default=None
         The font name of the plot
 
     Returns
@@ -126,7 +126,7 @@ def plot_model_accuracies(uq_result: UQResult, correct_indicators: ArrayLike, sc
     plt.show()
 
 
-def ranked_bar_plot(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = None,  fontsize: int = 10, fontname: str = "Arial"):
+def ranked_bar_plot(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = None,  fontsize: int = 10, fontname: str = None):
     """
     Plot the ranked bar plot for the given scorers.
 
@@ -150,7 +150,7 @@ def ranked_bar_plot(uq_result: UQResult, correct_indicators: ArrayLike, scorers_
     fontsize : int, default=10
         The font size of the plot
 
-    fontname : str, default="Arial"
+    fontname : str, default=None
         The font name of the plot
 
     Returns
@@ -217,7 +217,7 @@ def ranked_bar_plot(uq_result: UQResult, correct_indicators: ArrayLike, scorers_
     plt.show()
 
 
-def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = None,  fontsize: int = 10, fontname: str = "Arial"):
+def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = None,  fontsize: int = 10, fontname: str = None):
     """
     Plot the filtered accuracy for the given scorers.
 
@@ -239,7 +239,7 @@ def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, s
     fontsize : int, default=10
         The font size of the plot
 
-    fontname : str, default="Arial"
+    fontname : str, default=None
         The font name of the plot
 
     Returns
