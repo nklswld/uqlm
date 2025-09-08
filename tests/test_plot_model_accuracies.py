@@ -25,7 +25,7 @@ from uqlm.utils.plots import plot_model_accuracies
 
 def test_plot_model_accuracies_basic():
     """Test that the function runs successfully with valid inputs"""
-    uq_result = UQResult(result={"data":{"exact_match": np.array([0.1, 0.4, 0.35, 0.8])}})
+    uq_result = UQResult(result={"data": {"exact_match": np.array([0.1, 0.4, 0.35, 0.8])}})
     correct_indicators = np.array([True, False, True, True])
     thresholds = np.linspace(0, 0.9, num=10)
 
@@ -35,7 +35,7 @@ def test_plot_model_accuracies_basic():
 
 def test_plot_model_accuracies_value_error():
     """Test that the function raises ValueError when inputs have different lengths"""
-    uq_result = UQResult(result={"data":{"exact_match": np.array([0.1, 0.4, 0.35])}})
+    uq_result = UQResult(result={"data": {"exact_match": np.array([0.1, 0.4, 0.35])}})
     correct_indicators = np.array([True, False, True, True])
     thresholds = np.linspace(0, 0.9, num=10)
 
@@ -45,7 +45,7 @@ def test_plot_model_accuracies_value_error():
 
 def test_plot_model_accuracies_with_write_path():
     """Test that the function works when saving the plot to a file"""
-    uq_result = UQResult(result={"data":{"exact_match": np.array([0.1, 0.4, 0.35, 0.8])}})
+    uq_result = UQResult(result={"data": {"exact_match": np.array([0.1, 0.4, 0.35, 0.8])}})
     correct_indicators = np.array([True, False, True, True])
     thresholds = np.linspace(0, 0.9, num=10)
     write_path = "test_plot.png"
