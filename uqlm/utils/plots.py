@@ -16,7 +16,17 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import ArrayLike
-from typing import Optional
+from typing import List, Optional
+from sklearn.metrics import roc_auc_score
+
+from uqlm.utils.results import UQResult
+
+Black_Box_Scorers = ["semantic_negentropy", "noncontradiction", "exact_match", "cosine_sim"]
+White_Box_Scorers = ["normalized_probability", "min_probability"]
+Ensemble = ["ensemble_scores"]
+Ignore_Columns = ["prompts", "responses", "sampled_responses", "raw_sampled_responses", "raw_responses", "logprobs"]
+Method_Names = {"semantic_negentropy": "Semantic Negentropy", "noncontradiction": "Non-Contradiction", "exact_match": "Exact Match", "cosine_sim": "Cosine Similarity", "normalized_probability": "Normalized Probability", "min_probability": "Min Probability", "ensemble_scores": "Ensemble"}
+    
 
 
 def scale(values, upper, lower):
@@ -25,15 +35,18 @@ def scale(values, upper, lower):
     return [lower + (val - min_v) * (upper - lower) / (max_v - min_v) for val in values]
 
 
-def plot_model_accuracies(scores: ArrayLike, correct_indicators: ArrayLike, thresholds: ArrayLike = np.linspace(0, 0.9, num=10), axis_buffer: float = 0.1, title: str = "LLM Accuracy by Confidence Score Threshold", write_path: Optional[str] = None, bar_width=0.05, display_percentage: bool = False):
+def plot_model_accuracies(uq_result: UQResult, correct_indicators: ArrayLike, scorers_name: str, thresholds: ArrayLike = np.linspace(0, 0.9, num=10), axis_buffer: float = 0.1, title: str = "LLM Accuracy by Confidence Score Threshold", write_path: Optional[str] = None, bar_width=0.05, display_percentage: bool = False, fontsize: int = 10, fontname: str = "Arial"):
     """
     Parameters
     ----------
-    scores : list of float
-        A list of confidence scores from an uncertainty quantifier
+    uq_result : UQResult
+        The UQResult object to plot
 
     correct_indicators : list of bool
         A list of boolean indicators of whether self.original_responses are correct.
+
+    scorers_name : str
+        The name of the scorer to plot
 
     thresholds : ArrayLike, default=np.linspace(0, 1, num=10)
         A correspoding list of threshold values for accuracy computation
@@ -53,18 +66,24 @@ def plot_model_accuracies(scores: ArrayLike, correct_indicators: ArrayLike, thre
     display_percentage : bool, default=False
         Whether to display the sample size as a percentage
 
+    fontsize : int, default=10
+        The font size of the plot
+
+    fontname : str, default="Arial"
+        The font name of the plot
+
     Returns
     -------
     None
     """
-    n_samples = len(scores)
+    n_samples = len(uq_result.data[scorers_name])
     if n_samples != len(correct_indicators):
         raise ValueError("scores and correct_indicators must be the same length")
 
     accuracies, sample_sizes = [], []
     denominator = n_samples / 100 if display_percentage else 1
     for t in thresholds:
-        grades_t = [correct_indicators[i] for i in range(0, len(scores)) if scores[i] >= t]
+        grades_t = [correct_indicators[i] for i in range(0, len(uq_result.data[scorers_name])) if uq_result.data[scorers_name][i] >= t]
         accuracies.append(np.mean(grades_t))
         sample_sizes.append(len(grades_t) / denominator)
 
@@ -98,50 +117,75 @@ def plot_model_accuracies(scores: ArrayLike, correct_indicators: ArrayLike, thre
     ax.set_xticks(np.arange(0, 1, 0.1))
     ax.set_xlim([-0.04, 0.95])
     ax.set_ylim([min_acc * (1 - axis_buffer), max_acc * (1 + axis_buffer)])
-    ax.legend()
-    ax.set_xlabel("Thresholds")
-    ax.set_ylabel("LLM Accuracy (Filtered)")
-    ax.set_title(f"{title}", fontsize=10)
+    ax.legend(fontsize=fontsize-2)
+    ax.set_xlabel("Thresholds", fontsize=fontsize-2, fontname=fontname)
+    ax.set_ylabel("LLM Accuracy (Filtered)", fontsize=fontsize-2, fontname=fontname)
+    ax.set_title(f"{title}", fontsize=fontsize, fontname=fontname)
     if write_path:
         plt.savefig(f"{write_path}", dpi=300)
     plt.show()
 
 
-def ranked_bar_plot(scores: dict, weights: ArrayLike = None, title: str = None, write_path: Optional[str] = None, bar_colors: list = ["C0", "C2", "C3", "C4"], fs: int = 10, fn: str = "Arial") -> plt.Axes:
+def ranked_bar_plot(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = None,  fontsize: int = 10, fontname: str = "Arial"):
     """
+    Plot the ranked bar plot for the given scorers.
+
     Parameters
     ----------
-    scores : dict of dict
-        A dictionary where each key is a method name and each value is a dictionary
-        containing information about different scorers.
-        Example:
-            {
-                "White-box": {"scorer1": 0.85, "scorer2": 0.72, ...},
-                "Black-box": {"scorer1": 0.85, "scorer2": 0.72, ...},
-                "Judges": {"scorer1": 0.85, "scorer2": 0.72, ...},
-                "Ensemble": {"scorer": 0.85},
-            }
+    uq_result : UQResult
+        The UQResult object to plot
 
-    write_path : Optional[str], default=None
-        The path to save the plot
+    correct_indicators : ArrayLike
+        The correct indicators of the responses
 
-    weights : ArrayLike, default=None
-        The weights of the scorers
-
-    fs : int, default=10
-        The font size of the plot
-
-    fn : str, default="Arial"
-        The font name of the plot
+    scorers_names : List[str], default=None
+        The names of the scorers to plot
 
     title : str, default=None
         The title of the plot
 
+    write_path : Optional[str], default=None
+        The path to save the plot
+
+    fontsize : int, default=10
+        The font size of the plot
+
+    fontname : str, default="Arial"
+        The font name of the plot
+
     Returns
     -------
-    ax : matplotlib.axes.Axes
-        The axes object of the plot
+    None
     """
+    bar_colors: list = ["C0", "C2", "C3", "C4"]
+
+    if correct_indicators is None:
+        raise ValueError("correct_indicators must be provided")
+    if len(correct_indicators) != len(uq_result.data["responses"]):
+        raise ValueError("correct_responses must be the same length as the number of responses")
+
+    if scorers_names is None:
+        scorers_names = [col for col in uq_result.data.keys() if col not in Ignore_Columns]
+    
+    # Initialize scores dictionary
+    scores = {"Black-box": {}, "White-box": {}, "Judges": {}, "Ensemble": {}}
+    for col in scorers_names:
+        if col in uq_result.data.keys():
+            tmp = roc_auc_score(correct_indicators, uq_result.data[col])
+            if col in Black_Box_Scorers:
+                scores["Black-box"][Method_Names[col]] = tmp
+            elif col in White_Box_Scorers:
+                scores["White-box"][Method_Names[col]] = tmp
+            elif col[:6] == "judge_":
+                scores["Judges"][f"Judge {col[6:]}"] = tmp
+            elif col in Ensemble:
+                scores["Ensemble"][Method_Names[col]] = tmp
+
+    # Remove any empty dictionaries from scores
+    empty_keys = [k for k, v in scores.items() if not v]
+    for k in empty_keys:
+        del scores[k]
+
     _, ax = plt.subplots()
     cols, values = [], []
     for key in scores:
@@ -149,11 +193,7 @@ def ranked_bar_plot(scores: dict, weights: ArrayLike = None, title: str = None, 
             cols.append(scorer)
             values.append(scores[key][scorer])
 
-    if weights is not None:
-        sorted_tuples = sorted(zip(values, cols, weights))
-        sorted_values, sorted_cols, sorted_weights = zip(*sorted_tuples)
-    else:
-        sorted_values, sorted_cols = zip(*sorted(zip(values, cols)))
+    sorted_values, sorted_cols = zip(*sorted(zip(values, cols)))
 
     for i in range(len(sorted_values)):
         if sorted_cols[i] in scores.get("Black-box", {}):
@@ -167,68 +207,77 @@ def ranked_bar_plot(scores: dict, weights: ArrayLike = None, title: str = None, 
         ax.barh(sorted_cols[i], sorted_values[i], color=c)
 
     ax.set_xlim(sorted_values[0] - 0.2, sorted_values[-1] + 0.04)
-    ax.tick_params(axis="x", labelsize=fs - 3)
-    ax.tick_params(axis="y", labelsize=fs - 3)
+    ax.tick_params(axis="x", labelsize=fontsize - 3)
+    ax.tick_params(axis="y", labelsize=fontsize - 3)
     ax.grid()
-    ax.set_title(title, fontsize=fs, y=-0.22, fontname=fn)
-
-    # Add labels to the right of each bar
-    if weights is not None:
-        for i in range(len(sorted_values)):
-            bar_value = sorted_values[i]
-            bar_label = f"{sorted_cols[i]} ({sorted_weights[i]:.2f})"
-            ax.text(bar_value + 0.01, sorted_cols[i], bar_label, va="center", ha="left", fontsize=fs - 3, fontname=fn)
+    ax.set_title(title, fontsize=fontsize, y=-0.22, fontname=fontname)
 
     if write_path:
         plt.savefig(f"{write_path}", dpi=300)
     plt.show()
-    return ax
 
 
-def plot_filtered_accuracy(top_scores: dict, response_correct: list, fs=12) -> plt.Axes:
+def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = None,  fontsize: int = 10, fontname: str = "Arial"):
     """
-    Plot the filtered accuracy for the given top_scores.
-    top_scores: dict
-        Dictionary containing the top scores for each technique.
-        Example:
-        {
-            'White-Box UQ': [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.0],
-            'Black-Box UQ': [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.0],
-            'Judge': [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.0]
-        }
-    response_correct: list
-        List of response correctness.
-    fs: int
-        Font size for the plot.
+    Plot the filtered accuracy for the given scorers.
+
+    uq_result : UQResult
+        The UQResult object to plot
+
+    correct_indicators : ArrayLike
+        The correct indicators of the responses
+
+    scorers_names : List[str], default=None
+        The names of the scorers to plot
+
+    write_path : Optional[str], default=None
+        The path to save the plot
+
+    title : str, default=None
+        The title of the plot
+
+    fontsize : int, default=10
+        The font size of the plot
+
+    fontname : str, default="Arial"
+        The font name of the plot
 
     Returns
     -------
-    ax : matplotlib.axes.Axes
-        The axes object of the plot
+    None
     """
+    if correct_indicators is None:
+        raise ValueError("correct_indicators must be provided")
+    if len(correct_indicators) != len(uq_result.data["responses"]):
+        raise ValueError("correct_responses must be the same length as the number of responses")
+    
+    if scorers_names is None:
+        scorers_names = [col for col in uq_result.data.keys() if col not in Ignore_Columns]
+    
     _, ax = plt.subplots()
     thresholds = np.arange(0, 1, 0.1)
 
     accuracy = {}
-    for key in top_scores:
-        y_true = response_correct
-        y_score = top_scores[key]
-        accuracy[key] = list()
-        for thresh in thresholds:
-            accuracy[key].append(np.mean([y_true[i] for i in range(0, len(y_true)) if y_score[i] >= thresh]))
+    for key in scorers_names:
+        if key in uq_result.data.keys():
+            y_true = correct_indicators
+            y_score = uq_result.data[key]
+            accuracy[key] = list()
+            for thresh in thresholds:
+                accuracy[key].append(np.mean([y_true[i] for i in range(0, len(y_true)) if y_score[i] >= thresh]))
 
-    marker = {"White-Box UQ": "o", "Black-Box UQ": "s", "Judge": "^"}
-    color = {"White-Box UQ": "C2", "Black-Box UQ": "C0", "Judge": "C3"}
-    ax.hlines(accuracy[key][0], 0, 0.9, color="k", linestyles="dashed", label="Baseline LLM Accuracy")
     for key in accuracy:
-        ax.plot(thresholds, accuracy[key], marker=marker[key], label=key, color=color[key])
-    ax.hlines(accuracy[key][0], 0, 0.9, color="k", linestyles="dashed")
+        label_ = f"Judge {key[6:]}" if key[:6] == "judge_" else Method_Names[key]
+        ax.plot(thresholds, accuracy[key], label=label_)
+    ax.hlines(accuracy[key][0], 0, 0.9, color="k", linestyles="dashed", label="Baseline LLM Accuracy")
 
     ax.set_xlim(-0.05, 0.95)
-    ax.tick_params(axis="both", labelsize=fs - 3)  # Increase tick label font size
-    ax.set_xlabel("Confidence Score Threshold", fontsize=fs)
-    ax.set_ylabel("LLM Filtered Accuracy", fontsize=fs)
-    ax.legend(fontsize=fs - 3, bbox_to_anchor=(1.05, 1.1), ncol=4)
+    ax.tick_params(axis="both", labelsize=fontsize - 3)  # Increase tick label font size
+    ax.set_xlabel("Confidence Score Threshold", fontsize=fontsize-2, fontname=fontname)
+    ax.set_ylabel("LLM Filtered Accuracy", fontsize=fontsize-2, fontname=fontname)
+    ax.legend(fontsize=fontsize - 2)
     ax.grid()
+    ax.set_title(title, fontsize=fontsize, y=-0.22, fontname=fontname)
+    if write_path:
+        plt.savefig(f"{write_path}", dpi=300)
     plt.show()
-    return ax
