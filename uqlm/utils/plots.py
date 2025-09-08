@@ -26,7 +26,6 @@ White_Box_Scorers = ["normalized_probability", "min_probability"]
 Ensemble = ["ensemble_scores"]
 Ignore_Columns = ["prompts", "responses", "sampled_responses", "raw_sampled_responses", "raw_responses", "logprobs"]
 Method_Names = {"semantic_negentropy": "Semantic Negentropy", "noncontradiction": "Non-Contradiction", "exact_match": "Exact Match", "cosine_sim": "Cosine Similarity", "normalized_probability": "Normalized Probability", "min_probability": "Min Probability", "ensemble_scores": "Ensemble"}
-    
 
 
 def scale(values, upper, lower):
@@ -117,16 +116,16 @@ def plot_model_accuracies(uq_result: UQResult, correct_indicators: ArrayLike, sc
     ax.set_xticks(np.arange(0, 1, 0.1))
     ax.set_xlim([-0.04, 0.95])
     ax.set_ylim([min_acc * (1 - axis_buffer), max_acc * (1 + axis_buffer)])
-    ax.legend(fontsize=fontsize-2)
-    ax.set_xlabel("Thresholds", fontsize=fontsize-2, fontname=fontname)
-    ax.set_ylabel("LLM Accuracy (Filtered)", fontsize=fontsize-2, fontname=fontname)
+    ax.legend(fontsize=fontsize - 2)
+    ax.set_xlabel("Thresholds", fontsize=fontsize - 2, fontname=fontname)
+    ax.set_ylabel("LLM Accuracy (Filtered)", fontsize=fontsize - 2, fontname=fontname)
     ax.set_title(f"{title}", fontsize=fontsize, fontname=fontname)
     if write_path:
         plt.savefig(f"{write_path}", dpi=300)
     plt.show()
 
 
-def ranked_bar_plot(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = None,  fontsize: int = 10, fontname: str = None):
+def ranked_bar_plot(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = None, fontsize: int = 10, fontname: str = None):
     """
     Plot the ranked bar plot for the given scorers.
 
@@ -166,7 +165,7 @@ def ranked_bar_plot(uq_result: UQResult, correct_indicators: ArrayLike, scorers_
 
     if scorers_names is None:
         scorers_names = [col for col in uq_result.data.keys() if col not in Ignore_Columns]
-    
+
     # Initialize scores dictionary
     scores = {"Black-box": {}, "White-box": {}, "Judges": {}, "Ensemble": {}}
     for col in scorers_names:
@@ -217,7 +216,7 @@ def ranked_bar_plot(uq_result: UQResult, correct_indicators: ArrayLike, scorers_
     plt.show()
 
 
-def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = None,  fontsize: int = 10, fontname: str = None):
+def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = None, fontsize: int = 10, fontname: str = None):
     """
     Plot the filtered accuracy for the given scorers.
 
@@ -250,10 +249,10 @@ def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, s
         raise ValueError("correct_indicators must be provided")
     if len(correct_indicators) != len(uq_result.data["responses"]):
         raise ValueError("correct_responses must be the same length as the number of responses")
-    
+
     if scorers_names is None:
         scorers_names = [col for col in uq_result.data.keys() if col not in Ignore_Columns]
-    
+
     _, ax = plt.subplots()
     thresholds = np.arange(0, 1, 0.1)
 
@@ -273,8 +272,8 @@ def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, s
 
     ax.set_xlim(-0.05, 0.95)
     ax.tick_params(axis="both", labelsize=fontsize - 3)  # Increase tick label font size
-    ax.set_xlabel("Confidence Score Threshold", fontsize=fontsize-2, fontname=fontname)
-    ax.set_ylabel("LLM Filtered Accuracy", fontsize=fontsize-2, fontname=fontname)
+    ax.set_xlabel("Confidence Score Threshold", fontsize=fontsize - 2, fontname=fontname)
+    ax.set_ylabel("LLM Filtered Accuracy", fontsize=fontsize - 2, fontname=fontname)
     ax.legend(fontsize=fontsize - 2)
     ax.grid()
     ax.set_title(title, fontsize=fontsize, y=-0.22, fontname=fontname)

@@ -1,6 +1,7 @@
 from typing import Dict, Any
 import pandas as pd
 
+
 class UQResult:
     def __init__(self, result: Dict[str, Any]) -> None:
         """
