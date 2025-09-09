@@ -16,7 +16,7 @@ import pytest
 import numpy as np
 from unittest.mock import patch, MagicMock
 
-from uqlm.utils.score_evaluator import ScoreEvaluator
+from uqlm.utils.score_calibrator import evaluate_calibration, _plot_reliability_diagram
 
 
 class TestScoreEvaluator:
@@ -59,7 +59,7 @@ class TestScoreEvaluator:
         """Test basic calibration metrics calculation."""
         scores, correct_labels = sample_data
 
-        metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, plot=False)
+        metrics = evaluate_calibration(scores, correct_labels, plot=False)
 
         # Check that all expected metrics are present
         expected_keys = {"average_confidence", "average_accuracy", "calibration_gap", "brier_score", "log_loss", "ece", "mce"}
@@ -78,7 +78,7 @@ class TestScoreEvaluator:
         """Test calibration metrics with perfectly calibrated data."""
         scores, correct_labels = perfect_calibration_data
 
-        metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, plot=False)
+        metrics = evaluate_calibration(scores, correct_labels, plot=False)
 
         # Perfect calibration should have small calibration gap and ECE
         # Note: Due to randomness, we allow some tolerance
@@ -89,7 +89,7 @@ class TestScoreEvaluator:
         """Test calibration metrics with overconfident scores."""
         scores, correct_labels = overconfident_data
 
-        metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, plot=False)
+        metrics = evaluate_calibration(scores, correct_labels, plot=False)
 
         # Overconfident data should have high calibration gap
         assert metrics["average_confidence"] > metrics["average_accuracy"]
@@ -99,7 +99,7 @@ class TestScoreEvaluator:
         """Test calibration metrics with underconfident scores."""
         scores, correct_labels = underconfident_data
 
-        metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, plot=False)
+        metrics = evaluate_calibration(scores, correct_labels, plot=False)
 
         # Underconfident data should have high calibration gap
         assert metrics["average_confidence"] < metrics["average_accuracy"]
@@ -117,7 +117,7 @@ class TestScoreEvaluator:
 
         # All should work without error
         for scores, correct_labels in [(scores_list, correct_list), (scores_tuple, correct_tuple), (scores_array, correct_array)]:
-            metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, plot=False)
+            metrics = evaluate_calibration(scores, correct_labels, plot=False)
             assert isinstance(metrics, dict)
             assert 0 <= metrics["average_confidence"] <= 1
 
@@ -127,7 +127,7 @@ class TestScoreEvaluator:
         scores = np.array([0.9, 0.95, 0.99])
         correct_labels = np.array([1, 1, 1])
 
-        metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, plot=False)
+        metrics = evaluate_calibration(scores, correct_labels, plot=False)
 
         assert metrics["average_accuracy"] == 1.0
         assert metrics["calibration_gap"] >= 0
@@ -138,7 +138,7 @@ class TestScoreEvaluator:
         scores = np.array([0.1, 0.05, 0.01])
         correct_labels = np.array([0, 0, 0])
 
-        metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, plot=False)
+        metrics = evaluate_calibration(scores, correct_labels, plot=False)
 
         assert metrics["average_accuracy"] == 0.0
         assert np.isfinite(metrics["log_loss"])
@@ -149,7 +149,7 @@ class TestScoreEvaluator:
         scores = np.array([0.7])
         correct_labels = np.array([1])
 
-        metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, plot=False)
+        metrics = evaluate_calibration(scores, correct_labels, plot=False)
 
         assert metrics["average_confidence"] == 0.7
         assert metrics["average_accuracy"] == 1.0
@@ -162,7 +162,7 @@ class TestScoreEvaluator:
         scores = np.array([0.0, 0.0, 1.0, 1.0])
         correct_labels = np.array([0, 1, 0, 1])
 
-        metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, plot=False)
+        metrics = evaluate_calibration(scores, correct_labels, plot=False)
 
         # Should handle boundary cases without error
         assert isinstance(metrics, dict)
@@ -173,7 +173,7 @@ class TestScoreEvaluator:
         scores, correct_labels = sample_data
 
         for n_bins in [5, 10, 20]:
-            metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, n_bins=n_bins, plot=False)
+            metrics = evaluate_calibration(scores, correct_labels, n_bins=n_bins, plot=False)
 
             # Should work with different bin counts
             assert isinstance(metrics, dict)
@@ -192,7 +192,7 @@ class TestScoreEvaluator:
         mock_ax2 = MagicMock()
         mock_subplots.return_value = (mock_fig, [mock_ax1, mock_ax2])
 
-        _ = ScoreEvaluator.evaluate_calibration(scores, correct_labels, plot=True)
+        _ = evaluate_calibration(scores, correct_labels, plot=True)
 
         # Verify plotting functions were called
         mock_subplots.assert_called_once_with(1, 2, figsize=(12, 5))
@@ -212,7 +212,7 @@ class TestScoreEvaluator:
         custom_ax2 = MagicMock()
         custom_axes = (custom_ax1, custom_ax2)
 
-        _ = ScoreEvaluator.evaluate_calibration(scores, correct_labels, plot=True, axes=custom_axes)
+        _ = evaluate_calibration(scores, correct_labels, plot=True, axes=custom_axes)
 
         # When custom axes provided, show() should not be called
         mock_show.assert_not_called()
@@ -230,7 +230,7 @@ class TestScoreEvaluator:
         scores = np.array([0.1, 0.1, 0.9, 0.9])  # Two bins: [0.0-0.5], [0.5-1.0]
         correct_labels = np.array([0, 1, 0, 1])  # 50% accuracy in each bin
 
-        metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, n_bins=2, plot=False)
+        metrics = evaluate_calibration(scores, correct_labels, n_bins=2, plot=False)
 
         # Manual ECE calculation:
         # Bin 1 [0.0-0.5]: avg_conf=0.1, accuracy=0.5, weight=0.5, contrib=|0.1-0.5|*0.5=0.2
@@ -246,7 +246,7 @@ class TestScoreEvaluator:
         scores = np.array([0.1, 0.1, 0.9, 0.9])
         correct_labels = np.array([0, 0, 0, 0])  # All wrong
 
-        metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, n_bins=2, plot=False)
+        metrics = evaluate_calibration(scores, correct_labels, n_bins=2, plot=False)
 
         # MCE should be the maximum calibration error across bins
         # Bin 2 [0.5-1.0]: |0.9 - 0.0| = 0.9 (worst bin)
@@ -263,7 +263,7 @@ class TestScoreEvaluator:
         scores = np.array([0.1, 0.2, 0.8, 0.9])  # No scores in middle bins
         correct_labels = np.array([0, 1, 0, 1])
 
-        metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, n_bins=10, plot=False)
+        metrics = evaluate_calibration(scores, correct_labels, n_bins=10, plot=False)
 
         # Should handle empty bins without error
         assert isinstance(metrics["ece"], float)
@@ -282,7 +282,7 @@ class TestScoreEvaluator:
         mock_ax2 = MagicMock()
         axes = (mock_ax1, mock_ax2)
 
-        ScoreEvaluator._plot_reliability_diagram(bin_boundaries, bin_counts, bin_accuracies, axes=axes)
+        _plot_reliability_diagram(bin_boundaries, bin_counts, bin_accuracies, axes=axes)
 
         # Verify plotting methods were called
         mock_ax1.plot.assert_called()
@@ -304,7 +304,7 @@ class TestScoreEvaluator:
             mock_ax2_new = MagicMock()
             mock_subplots.return_value = (mock_fig, [mock_ax1_new, mock_ax2_new])
 
-            ScoreEvaluator._plot_reliability_diagram(bin_boundaries, bin_counts, bin_accuracies, axes=None)
+            _plot_reliability_diagram(bin_boundaries, bin_counts, bin_accuracies, axes=None)
 
             # Verify new figure was created and shown
             mock_subplots.assert_called_once_with(1, 2, figsize=(12, 5))
@@ -317,7 +317,7 @@ class TestScoreEvaluator:
         scores = np.array([0.5000001, 0.5000002, 0.4999999])
         correct_labels = np.array([1, 0, 1])
 
-        metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, plot=False)
+        metrics = evaluate_calibration(scores, correct_labels, plot=False)
 
         # Should handle small numeric differences without error
         assert isinstance(metrics["calibration_gap"], float)
@@ -327,7 +327,7 @@ class TestScoreEvaluator:
         scores = np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
         correct_labels = np.array([0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1])
 
-        metrics = ScoreEvaluator.evaluate_calibration(scores, correct_labels, n_bins=10, plot=False)
+        metrics = evaluate_calibration(scores, correct_labels, n_bins=10, plot=False)
 
         # Should handle boundary scores correctly
         assert isinstance(metrics["ece"], float)

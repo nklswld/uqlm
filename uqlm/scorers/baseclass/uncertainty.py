@@ -15,15 +15,13 @@
 
 import io
 import contextlib
-import pandas as pd
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, List, Optional
 from rich.progress import Progress, TextColumn
 
 from uqlm.utils.response_generator import ResponseGenerator
 from uqlm.black_box.nli import NLIScorer
 from uqlm.judges.judge import LLMJudge
 from uqlm.utils.display import ConditionalBarColumn, ConditionalTimeElapsedColumn, ConditionalTextColumn, ConditionalSpinnerColumn
-from uqlm.utils.score_calibrator import ScoreCalibrator
 
 DEFAULT_BLACK_BOX_SCORERS = ["semantic_negentropy", "noncontradiction", "exact_match", "cosine_sim"]
 
@@ -74,7 +72,6 @@ class UncertaintyQuantifier:
         self.progress_bar = None
         self.raw_responses = None
         self.raw_sampled_responses = None
-        self.calibrator = None
 
     async def generate_original_responses(self, prompts: List[str], progress_bar: Optional[Progress] = None) -> List[str]:
         """
@@ -138,35 +135,6 @@ class UncertaintyQuantifier:
             sampled_responses = [[self.postprocessor(r) for r in m] for m in sampled_responses]
         self.llm.temperature = llm_temperature
         return sampled_responses
-    
-    def calibrate_scores(self, scores: List[float], correct_labels: List[bool] = None, method: Literal["platt", "isotonic"] = "platt") -> List[float]:
-        """
-        Calibrate scores using platt or isotonic regression.
-
-        Parameters
-        ----------
-        scores : list of float
-            A list of scores to calibrate.
-
-        correct_labels : list of bool, default=None
-            A list of correct labels for the scores. If provided, the calibrator will be fitted.
-
-        method : Literal["platt", "isotonic"], default="platt"
-            The method to use for calibration. Only used if calibrator is not fitted or correct_labels is provided.
-
-        Returns
-        -------
-        list of float
-            A list of calibrated scores.
-        """
-        if correct_labels is None and not getattr(self.calibrator, "is_fitted_", False):
-            raise ValueError("correct_labels must be provided if calibrator is not fitted")
-            
-        if not getattr(self.calibrator, "is_fitted_", False) or correct_labels is not None:
-            self.calibrator = ScoreCalibrator(method=method)
-            self.calibrator.fit(scores, correct_labels)
-        
-        return self.calibrator.transform(scores)
 
     async def _generate_responses(self, prompts: List[str], count: int, temperature: float = None, progress_bar: Optional[Progress] = None) -> List[str]:
         """Helper function to generate responses with LLM"""

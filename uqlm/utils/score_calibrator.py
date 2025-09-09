@@ -87,7 +87,7 @@ class ScoreCalibrator:
                 scores = np.array(uq_result.data[scorer])
                 if len(scores) != len(correct_indicators):
                     raise ValueError("scores and correct_indicators must have the same length")
-                
+
                 if not np.all((scores >= 0) & (scores <= 1)):
                     raise ValueError("scores must be between 0 and 1 inclusive")
 
@@ -127,10 +127,10 @@ class ScoreCalibrator:
                 if self.method == "platt":
                     # LogisticRegression needs 2D input and returns probabilities for class 1
                     scores_2d = scores.reshape(-1, 1)
-                    tmp["calibrated_"+scorer] = self.calibrators[scorer].predict_proba(scores_2d)[:, 1]
+                    tmp["calibrated_" + scorer] = self.calibrators[scorer].predict_proba(scores_2d)[:, 1]
                 elif self.method == "isotonic":
                     # IsotonicRegression can handle 1D arrays
-                    tmp["calibrated_"+scorer] = self.calibrators[scorer].predict(scores)
+                    tmp["calibrated_" + scorer] = self.calibrators[scorer].predict(scores)
                 else:
                     raise ValueError(f"Unknown method: {self.method}")
         uq_result.data.update(tmp)
@@ -173,10 +173,10 @@ class ScoreCalibrator:
         -------
         metrics : dict
             Dictionary containing calibration metrics for each scorer.
-        """      
+        """
         if len(uq_result.data["responses"]) != len(correct_indicators):
             raise ValueError("uq_result.data and correct_indicators must have the same length")
-        
+
         metrics = {}
         for scorer in uq_result.data:
             if scorer not in Ignore_Columns:
