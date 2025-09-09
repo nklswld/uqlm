@@ -1,3 +1,4 @@
+
 # Copyright 2025 CVS Health and/or one of its affiliates
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,38 +20,37 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from uqlm.utils.results import UQResult
 from uqlm.utils.plots import plot_model_accuracies
 
 
 def test_plot_model_accuracies_basic():
     """Test that the function runs successfully with valid inputs"""
-    uq_result = UQResult(result={"data": {"exact_match": np.array([0.1, 0.4, 0.35, 0.8])}})
+    scores = np.array([0.1, 0.4, 0.35, 0.8])
     correct_indicators = np.array([True, False, True, True])
     thresholds = np.linspace(0, 0.9, num=10)
 
-    plot_model_accuracies(uq_result, correct_indicators, scorers_name="exact_match", thresholds=thresholds)
+    plot_model_accuracies(scores, correct_indicators, thresholds)
     plt.close("all")
 
 
 def test_plot_model_accuracies_value_error():
     """Test that the function raises ValueError when inputs have different lengths"""
-    uq_result = UQResult(result={"data": {"exact_match": np.array([0.1, 0.4, 0.35])}})
+    scores = np.array([0.1, 0.4, 0.35])
     correct_indicators = np.array([True, False, True, True])
     thresholds = np.linspace(0, 0.9, num=10)
 
     with pytest.raises(ValueError):
-        plot_model_accuracies(uq_result, correct_indicators, scorers_name="exact_match", thresholds=thresholds)
+        plot_model_accuracies(scores, correct_indicators, thresholds)
 
 
 def test_plot_model_accuracies_with_write_path():
     """Test that the function works when saving the plot to a file"""
-    uq_result = UQResult(result={"data": {"exact_match": np.array([0.1, 0.4, 0.35, 0.8])}})
+    scores = np.array([0.1, 0.4, 0.35, 0.8])
     correct_indicators = np.array([True, False, True, True])
     thresholds = np.linspace(0, 0.9, num=10)
     write_path = "test_plot.png"
 
-    plot_model_accuracies(uq_result, correct_indicators, scorers_name="exact_match", thresholds=thresholds, write_path=write_path)
+    plot_model_accuracies(scores, correct_indicators, thresholds, write_path=write_path)
     plt.close("all")
     assert os.path.exists(write_path)
     os.remove(write_path)
