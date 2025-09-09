@@ -16,7 +16,8 @@
 from typing import Any, List, Optional
 import warnings
 
-from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
+from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier
+from uqlm.utils.results import UQResult
 import time
 
 
@@ -136,7 +137,7 @@ class SemanticEntropy(UncertaintyQuantifier):
         self._display_generation_header(show_progress_bars)
 
         responses = await self.generate_original_responses(prompts, progress_bar=self.progress_bar)
-        sampled_responses = await self.generate_candidate_responses(prompts, progress_bar=self.progress_bar)
+        sampled_responses = await self.generate_candidate_responses(prompts, num_responses=self.num_responses, progress_bar=self.progress_bar)
         return self.score(responses=responses, sampled_responses=sampled_responses, show_progress_bars=show_progress_bars)
 
     def score(self, responses: List[str] = None, sampled_responses: List[List[str]] = None, show_progress_bars: Optional[bool] = True) -> UQResult:
