@@ -34,18 +34,15 @@ def scale(values, upper, lower):
     return [lower + (val - min_v) * (upper - lower) / (max_v - min_v) for val in values]
 
 
-def plot_model_accuracies(uq_result: UQResult, correct_indicators: ArrayLike, scorers_name: str, thresholds: ArrayLike = np.linspace(0, 0.9, num=10), axis_buffer: float = 0.1, title: str = "LLM Accuracy by Confidence Score Threshold", write_path: Optional[str] = None, bar_width=0.05, display_percentage: bool = False, fontsize: int = 10, fontname: str = None):
+def plot_model_accuracies(scores: ArrayLike, correct_indicators: ArrayLike, thresholds: ArrayLike = np.linspace(0, 0.9, num=10), axis_buffer: float = 0.1, title: str = "LLM Accuracy by Confidence Score Threshold", write_path: Optional[str] = None, bar_width=0.05, display_percentage: bool = False):
     """
     Parameters
     ----------
-    uq_result : UQResult
-        The UQResult object to plot
+    scores : list of float
+        A list of confidence scores from an uncertainty quantifier
 
     correct_indicators : list of bool
         A list of boolean indicators of whether self.original_responses are correct.
-
-    scorers_name : str
-        The name of the scorer to plot
 
     thresholds : ArrayLike, default=np.linspace(0, 1, num=10)
         A correspoding list of threshold values for accuracy computation
@@ -65,24 +62,18 @@ def plot_model_accuracies(uq_result: UQResult, correct_indicators: ArrayLike, sc
     display_percentage : bool, default=False
         Whether to display the sample size as a percentage
 
-    fontsize : int, default=10
-        The font size of the plot
-
-    fontname : str, default=None
-        The font name of the plot
-
     Returns
     -------
     None
     """
-    n_samples = len(uq_result.data[scorers_name])
+    n_samples = len(scores)
     if n_samples != len(correct_indicators):
         raise ValueError("scores and correct_indicators must be the same length")
 
     accuracies, sample_sizes = [], []
     denominator = n_samples / 100 if display_percentage else 1
     for t in thresholds:
-        grades_t = [correct_indicators[i] for i in range(0, len(uq_result.data[scorers_name])) if uq_result.data[scorers_name][i] >= t]
+        grades_t = [correct_indicators[i] for i in range(0, len(scores)) if scores[i] >= t]
         accuracies.append(np.mean(grades_t))
         sample_sizes.append(len(grades_t) / denominator)
 
@@ -116,10 +107,10 @@ def plot_model_accuracies(uq_result: UQResult, correct_indicators: ArrayLike, sc
     ax.set_xticks(np.arange(0, 1, 0.1))
     ax.set_xlim([-0.04, 0.95])
     ax.set_ylim([min_acc * (1 - axis_buffer), max_acc * (1 + axis_buffer)])
-    ax.legend(fontsize=fontsize - 2)
-    ax.set_xlabel("Thresholds", fontsize=fontsize - 2, fontname=fontname)
-    ax.set_ylabel("LLM Accuracy (Filtered)", fontsize=fontsize - 2, fontname=fontname)
-    ax.set_title(f"{title}", fontsize=fontsize, fontname=fontname)
+    ax.legend()
+    ax.set_xlabel("Thresholds")
+    ax.set_ylabel("LLM Accuracy (Filtered)")
+    ax.set_title(f"{title}", fontsize=10)
     if write_path:
         plt.savefig(f"{write_path}", dpi=300)
     plt.show()
