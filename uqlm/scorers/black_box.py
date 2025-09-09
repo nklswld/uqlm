@@ -16,7 +16,8 @@
 from langchain_core.language_models.chat_models import BaseChatModel
 from typing import Any, List, Optional
 
-from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
+from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier
+from uqlm.utils.results import UQResult
 from uqlm.black_box import BertScorer, CosineScorer, MatchScorer
 
 
@@ -142,7 +143,7 @@ class BlackBoxUQ(UncertaintyQuantifier):
         self._display_generation_header(show_progress_bars)
 
         responses = await self.generate_original_responses(prompts=prompts, progress_bar=self.progress_bar)
-        sampled_responses = await self.generate_candidate_responses(prompts=prompts, progress_bar=self.progress_bar)
+        sampled_responses = await self.generate_candidate_responses(prompts=prompts, num_responses=self.num_responses, progress_bar=self.progress_bar)
         result = self.score(responses=responses, sampled_responses=sampled_responses, show_progress_bars=show_progress_bars)
         return result
 
