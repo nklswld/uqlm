@@ -1,13 +1,18 @@
 import warnings
 from typing import Any, List, Optional
+import numpy as np
 from langchain_core.language_models.chat_models import BaseChatModel
-from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult, DEFAULT_LONG_FORM_SCORERS
+from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
 from uqlm.longform.black_box import LUQScorer
 from uqlm.longform.decomposition import ResponseDecomposer
 
-SENTENCE_BASED_SCORERS = ["luq"]
-CLAIM_BASED_SCORERS = ["luq_atomic"]
-
+SENTENCE_BLACKBOX_SCORERS = ["response_sent_entail", "response_sent_noncontradict", "response_sent_contrast_entail"]
+CLAIM_BLACKBOX_SCORERS = ["response_claim_entail", "response_claim_noncontradict", "response_claim_contrast_entail"]
+NLI_SCORERS = SENTENCE_BLACKBOX_SCORERS + CLAIM_BLACKBOX_SCORERS
+DATACLASS_NAMES = ["claim_entail_scores", "claim_noncontradict_scores", "claim_constrast_entail_scores"]
+DATACLASS_TO_SCORER_MAP = {
+    scorer: dataclass_name for scorer, dataclass_name in zip(NLI_SCORERS, DATACLASS_NAMES * 2)
+}
 
 class LongFormUQ(UncertaintyQuantifier):
     def __init__(
@@ -84,8 +89,7 @@ class LongFormUQ(UncertaintyQuantifier):
         self.sampling_temperature = sampling_temperature
         self.nli_model_name = nli_model_name
         self.claim_decomposition_llm = claim_decomposition_llm
-        self.default_long_form_scorers = DEFAULT_LONG_FORM_SCORERS
-        self._validate_scorers(scorers)
+        self.default_long_form_scorers = SENTENCE_BLACKBOX_SCORERS
         self.decomposer = ResponseDecomposer(claim_decomposition_llm=claim_decomposition_llm if claim_decomposition_llm else llm)
         self.prompts = None
         self.responses = None
@@ -93,6 +97,8 @@ class LongFormUQ(UncertaintyQuantifier):
         self.sentence_sets = None
         self.sampled_responses = None
         self.num_responses = None
+        self.luq_scorer = None
+        self._validate_scorers(scorers)
         self.scores_dict = {}
 
     async def generate_and_score(self, prompts: List[str], num_responses: int = 5, show_progress_bars: Optional[bool] = True) -> UQResult:
@@ -122,11 +128,11 @@ class LongFormUQ(UncertaintyQuantifier):
         self._display_generation_header(show_progress_bars)
 
         responses = await self.generate_original_responses(prompts=prompts, progress_bar=self.progress_bar)
-        sampled_responses = await self.generate_candidate_responses(prompts=prompts, progress_bar=self.progress_bar)
-        result = self.score(responses=responses, sampled_responses=sampled_responses, show_progress_bars=show_progress_bars)
+        sampled_responses = await self.generate_candidate_responses(prompts=prompts, progress_bar=self.progress_bar, num_responses=self.num_responses)
+        result = await self.score(responses=responses, sampled_responses=sampled_responses, show_progress_bars=show_progress_bars)
         return result
 
-    async def score(self, responses: List[str], sampled_responses: List[List[str]], show_progress_bars: Optional[bool] = True, _display_header: bool = True) -> UQResult:
+    async def score(self, responses: List[str], sampled_responses: List[List[str]], show_progress_bars: Optional[bool] = True) -> UQResult:
         """
         Compute confidence scores with specified scorers on provided LLM responses. Should only be used if responses and sampled responses
         are already generated. Otherwise, use `generate_and_score`.
@@ -151,47 +157,75 @@ class LongFormUQ(UncertaintyQuantifier):
         self.responses = responses
         self.sampled_responses = sampled_responses
         self.num_responses = len(sampled_responses[0])
-
         self._construct_progress_bar(show_progress_bars)
-        self._display_scoring_header(show_progress_bars and _display_header)
-
-        if not set(self.scorers).isdisjoint(CLAIM_BASED_SCORERS):
-            self.claim_sets = await self.decomposer.decompose_claims(responses=responses, progress_bar=self.progress_bar)
-        if not set(self.scorers).isdisjoint(SENTENCE_BASED_SCORERS):
-            self.sentence_sets = await self.decomposer.decompose_sentences(responses=responses, progress_bar=self.progress_bar)
-
-        self.scores_dict = {k: [] for k in self.scorer_objects}
-        for scorer_key, scorer_object in self.scorer_objects.items():
-            decomposed_responses = self.claim_sets if scorer_key in CLAIM_BASED_SCORERS else self.sentence_sets
-            self.scores_dict[scorer_key] = scorer_object.evaluate(decomposed_responses, sampled_responses=self.sampled_responses, progress_bar=self.progress_bar).to_dict()
+        
+        await self._decompose_responses(show_progress_bars)
+        self._display_scoring_header(show_progress_bars)
+        
+        self.scores_dict = {k: [] for k in self.scorers}
+        if self.claim_level_bb_scorers:
+            self.bb_claim_scores_dict = self.luq_scorer.evaluate(claim_sets=self.claim_sets, sampled_responses=self.sampled_responses, progress_bar=self.progress_bar).to_dict()
+            for scorer in self.claim_level_bb_scorers:
+                self.scores_dict[scorer] = [np.mean(claim_scores) for claim_scores in self.bb_claim_scores_dict[DATACLASS_TO_SCORER_MAP[scorer]]]
+                
+        if self.sentence_level_bb_scorers:
+            self.bb_sentence_scores_dict = self.luq_scorer.evaluate(claim_sets=self.sentence_sets, sampled_responses=self.sampled_responses, progress_bar=self.progress_bar).to_dict()
+            for scorer in self.sentence_level_bb_scorers:
+                self.scores_dict[scorer] = [np.mean(claim_scores) for claim_scores in self.bb_sentence_scores_dict[DATACLASS_TO_SCORER_MAP[scorer]]]
+                
         result = self._construct_result()
+        
         self._stop_progress_bar()
         self.progress_bar = None
         return result
 
+    async def _decompose_responses(self, show_progres_bars) -> None:
+        """Display header and decompose responses"""
+        self._display_decomposition_header(show_progres_bars)
+        if self.claim_level_bb_scorers:
+            self.claim_sets = await self.decomposer.decompose_claims(responses=self.responses, progress_bar=self.progress_bar)        
+        if self.sentence_level_bb_scorers:
+            self.sentence_sets = self.decomposer.decompose_sentences(responses=self.responses, progress_bar=self.progress_bar)
+         
     def _construct_result(self) -> Any:
         """Constructs UQResult object"""
-        data = {"responses": self.responses, "claim_sets": self.claim_sets, "sampled_responses": self.sampled_responses}
+        data = {"responses": self.responses, "sampled_responses": self.sampled_responses}
         if self.prompts:
             data["prompts"] = self.prompts
+        if self.claim_sets:
+            data["claim_sets"] = self.claim_sets
+        if self.sentence_sets:
+            data["sentence_sets"] = self.sentence_sets
         data.update(self.scores_dict)
         result = {"data": data, "metadata": {"temperature": None if not self.llm else self.llm.temperature, "sampling_temperature": None if not self.sampling_temperature else self.sampling_temperature, "num_responses": self.num_responses, "scorers": self.scorers}}
         return UQResult(result)
+    
+    def _display_decomposition_header(self, show_progress_bars: bool) -> None:
+        """Displays decomposition header"""
+        if show_progress_bars:
+            self.progress_bar.start()
+            self.progress_bar.add_task("")
+            self.progress_bar.add_task("✂️ Response Decomposition")    
 
     def _validate_scorers(self, scorers: Optional[List[str]]) -> None:
         """Validate scorers"""
-        if "luq_atomic" in scorers and "luq" in scorers:
-            warnings.warn("Redundant metrics configuration: Using both 'luq' and 'luq_atomic' increases computation time without providing additional information. Use only one or the other for substantially faster runtime.", UserWarning)
         self.scorer_objects = {}
         if scorers is None:
             scorers = self.default_long_form_scorers
+        self.sentence_level_bb_scorers = set(SENTENCE_BLACKBOX_SCORERS).intersection(set(scorers))
+        self.claim_level_bb_scorers = set(CLAIM_BLACKBOX_SCORERS).intersection(set(scorers))  
+        if self.claim_level_bb_scorers and self.sentence_level_bb_scorers:
+            warnings.warn("Redundant metrics configuration: Using both sentence-level and claim-level black-box scorers increases computation time without providing additional information. Use only one or the other for substantially faster runtime.", UserWarning)
         for scorer in scorers:
-            if scorer in ["luq", "luq_atomic"]:
-                self.scorer_objects[scorer] = LUQScorer(nli_model_name=self.nli_model_name, device=self.device, max_length=self.max_length)
+            if scorer in NLI_SCORERS:
+                if not self.luq_scorer:
+                    self.luq_scorer = LUQScorer(nli_model_name=self.nli_model_name, device=self.device, max_length=self.max_length)
+                else:
+                    continue
             else:
                 raise ValueError(
                     f"""
-                    Invalid scorer: {scorer}. Must be one of ["luq", "luq_atomic"]
+                    Invalid scorer: {scorer}. Must be one of {NLI_SCORERS}
                     """
                 )
-        self.scorers = scorers
+            self.scorers = scorers

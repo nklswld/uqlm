@@ -25,12 +25,11 @@ class ClaimScores:
     """
 
     claim_entail_scores: List[np.ndarray]
-    claim_contradict_scores: List[np.ndarray]
+    claim_noncontradict_scores: List[np.ndarray]
     claim_constrast_entail_scores: List[np.ndarray]
 
     def to_dict(self) -> dict:
-        return {"claim_entail_scores": self.claim_entail_scores, "claim_contradict_scores": self.claim_contradict_scores, "claim_constrast_entail_scores": self.claim_constrast_entail_scores}
-
+        return {"claim_entail_scores": self.claim_entail_scores, "claim_noncontradict_scores": self.claim_noncontradict_scores, "claim_constrast_entail_scores": self.claim_constrast_entail_scores}
 
 class ClaimScorer(ABC):
     """Abstract class for text similarity scorers"""

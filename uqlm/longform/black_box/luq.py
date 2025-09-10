@@ -67,35 +67,35 @@ class LUQScorer(ClaimScorer):
             progress_task = progress_bar.add_task("  - Scoring claim/sentence sets with LUQ...", total=len(claim_sets))
         claim_entail_score_lists, claim_noncontradict_score_lists, claim_constrast_entail_score_lists = [], [], []
         for (claim_set, candidates) in zip(claim_sets, sampled_responses):
-            claim_entail_scores, claim_contradict_scores, claim_constrast_entail_scores = self._compute_claim_level_scores(claim_set, candidates)
-            claim_entail_score_lists[i] = claim_entail_scores
-            claim_noncontradict_score_lists[i] = claim_noncontradict_scores
-            claim_constrast_entail_score_lists[i] = claim_constrast_entail_scores
+            claim_entail_scores, claim_noncontradict_scores, claim_constrast_entail_scores = self._compute_claim_level_scores(claim_set, candidates)
+            claim_entail_score_lists.append(claim_entail_scores)
+            claim_noncontradict_score_lists.append(claim_noncontradict_scores)
+            claim_constrast_entail_score_lists.append(claim_constrast_entail_scores)
             if progress_bar:
                 progress_bar.update(progress_task, advance=1)
         time.sleep(0.1)
-        return ClaimScores(claim_entail_scores=claim_entail_scores, claim_noncontradict_scores=claim_noncontradict_scores, claim_constrast_entail_scores=claim_constrast_entail_scores)
+        return ClaimScores(claim_entail_scores=claim_entail_score_lists, claim_noncontradict_scores=claim_noncontradict_score_lists, claim_constrast_entail_scores=claim_constrast_entail_score_lists)
 
     def _compute_claim_level_scores(self, claims: List[str], candidates: List[str]) -> Tuple[float, np.ndarray, np.ndarray]:
         """Evaluate the LUQ score and claim scores for a list of claims and candidate responses."""
-        shape=(len(claims), len(candidate_responses))
+        shape=(len(claims), len(candidates))
         entail_scores = np.zeros(shape=shape)
         noncontradict_scores = np.zeros(shape=shape)
         contrast_entail_scores = np.zeros(shape=shape)
         for i, claim in enumerate(claims):
-            for j, candidate in enumerate(candidate_responses):
-                entail_prob, noncontradict_prob, contrast_entail_prob = self._compute_entailment_score(claim, candidate)
+            for j, candidate in enumerate(candidates):
+                entail_prob, noncontradict_prob, contrast_entail_prob = self._compute_nli_scores(claim, candidate)
                 entail_scores[i, j] = entail_prob
                 noncontradict_scores[i, j] = noncontradict_prob
                 contrast_entail_scores[i, j] = contrast_entail_prob
-        claim_entail_scores = scores.mean(axis=1)
-        claim_noncontradict_scores = scores.mean(axis=1)
-        claim_constrast_entail_scores = scores.mean(axis=1)
+        claim_entail_scores = entail_scores.mean(axis=1)
+        claim_noncontradict_scores = noncontradict_scores.mean(axis=1)
+        claim_constrast_entail_scores = contrast_entail_scores.mean(axis=1)
         return claim_entail_scores, claim_noncontradict_scores, claim_constrast_entail_scores
 
-    def _compute_nli_scores(self, claim: str, candidate_response: str) -> float:
+    def _compute_nli_scores(self, claim: str, candidate: str) -> float:
         """Compute probabilities from NLI model"""
-        nli_probabilities = self.nli.predict(hypothesis=candidate_response, premise=claim)
+        nli_probabilities = self.nli.predict(hypothesis=candidate, premise=claim)
         entail_prob = nli_probabilities[:, 2]
         contradict_prob = nli_probabilities[:, 0]
         contrast_entail_prob = entail_prob / (entail_prob + contradict_prob)
