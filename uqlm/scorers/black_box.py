@@ -16,7 +16,8 @@
 from langchain_core.language_models.chat_models import BaseChatModel
 from typing import Any, List, Optional
 
-from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
+from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier
+from uqlm.utils.results import UQResult
 from uqlm.black_box import BertScorer, CosineScorer, MatchScorer
 
 

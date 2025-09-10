@@ -16,7 +16,8 @@
 from typing import Any, List, Optional
 import warnings
 
-from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
+from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier
+from uqlm.utils.results import UQResult
 import time
 
 
