@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from uqlm.long_form.black_box.luq import LUQScorer
+from uqlm.longform.decomposition.response_decomposer import ResponseDecomposer
+from uqlm.longform.black_box.luq import LUQScorer
 
-__all__ = ["LUQScorer"]
+__all__ = ["ResponseDecomposer", "LUQScorer"]

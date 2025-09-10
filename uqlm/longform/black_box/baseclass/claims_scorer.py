@@ -24,12 +24,12 @@ class ClaimScores:
     ClaimsScores is a dataclass that contains the aggregated score and the raw scores for each claim set.
     """
 
-    response_scores: List[float]
-    claim_scores: List[np.ndarray]
-    entailment_scores: List[np.ndarray]
+    claim_entail_scores: List[np.ndarray]
+    claim_contradict_scores: List[np.ndarray]
+    claim_constrast_entail_scores: List[np.ndarray]
 
     def to_dict(self) -> dict:
-        return {"response_scores": self.response_scores, "claim_scores": self.claim_scores, "entailment_scores": self.entailment_scores}
+        return {"claim_entail_scores": self.claim_entail_scores, "claim_contradict_scores": self.claim_contradict_scores, "claim_constrast_entail_scores": self.claim_constrast_entail_scores}
 
 
 class ClaimScorer(ABC):
