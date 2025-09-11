@@ -23,7 +23,7 @@ from uqlm.longform.black_box.baseclass.claims_scorer import ClaimScorer, ClaimSc
 class LUQScorer(ClaimScorer):
     def __init__(self, nli_model_name: str = "microsoft/deberta-large-mnli", device: Any = None, max_length: int = 2000):
         """
-        LUQScorer calculates the LUQ or LUQ-Atomic scores.
+        LUQScorer calculates variations of the LUQ, LUQ-Atomic, or LUQ-Pair scores.
 
         Parameters
         ----------
