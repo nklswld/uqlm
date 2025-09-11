@@ -205,7 +205,7 @@ class LongFormUQ(UncertaintyQuantifier):
         if show_progress_bars:
             self.progress_bar.start()
             self.progress_bar.add_task("")
-            self.progress_bar.add_task("✂️ Response Decomposition")    
+            self.progress_bar.add_task("✂️ Decomposition")    
 
     def _validate_scorers(self, scorers: Optional[List[str]]) -> None:
         """Validate scorers"""
