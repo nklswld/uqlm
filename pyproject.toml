@@ -27,6 +27,7 @@ packages = [
     { include = "uqlm/scorers" },
     { include = "uqlm/judges" },
     { include = "uqlm/black_box" },
+    { include = "uqlm/longform" },
     { include = "uqlm/resources" },
     { include = "uqlm/utils" },
 ]
