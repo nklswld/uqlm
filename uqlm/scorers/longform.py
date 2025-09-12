@@ -175,9 +175,9 @@ class LongFormUQ(UncertaintyQuantifier):
             for scorer in self.claim_level_bb_scorers:
                 self.scores_dict[scorer] = [np.mean(claim_scores) for claim_scores in self.bb_claim_scores_dict[DATACLASS_TO_SCORER_MAP[scorer]]]
         if self.matched_claim_bb_scorers:
-            matched_claim_scores_result = self.luq_scorer.evaluate(claim_sets=self.claim_sets, sampled_responses=self.sampled_responses, progress_bar=self.progress_bar).to_dict()
+            matched_claim_scores_result = self.luq_scorer.evaluate(claim_sets=self.claim_sets, sampled_claims=self.sampled_claim_sets, progress_bar=self.progress_bar).to_dict()
             self.bb_claim_scores_dict.update(matched_claim_scores_result)
-            for scorer in self.claim_level_bb_scorers:
+            for scorer in self.matched_claim_bb_scorers:
                 self.scores_dict[scorer] = [np.mean(claim_scores) for claim_scores in self.bb_claim_scores_dict[DATACLASS_TO_SCORER_MAP[scorer]]]                
         result = self._construct_result()
         
@@ -190,10 +190,10 @@ class LongFormUQ(UncertaintyQuantifier):
         self._display_decomposition_header(show_progress_bars)
         if self.sentence_level_bb_scorers:
             self.sentence_sets = self.decomposer.decompose_sentences(responses=self.responses, progress_bar=self.progress_bar)
-        if self.claim_level_bb_scorers:
+        if self.claim_level_bb_scorers or self.matched_claim_bb_scorers:
             self.claim_sets = await self.decomposer.decompose_claims(responses=self.responses, progress_bar=self.progress_bar)        
         if self.matched_claim_bb_scorers:
-            self.matched_claim_sets = await self.decomposer.decompose_candidate_claims(responses=self.sampled_responses, progress_bar=self.progress_bar)    
+            self.sampled_claim_sets = await self.decomposer.decompose_candidate_claims(sampled_responses=self.sampled_responses, progress_bar=self.progress_bar)    
          
     def _construct_result(self) -> Any:
         """Constructs UQResult object"""
@@ -223,7 +223,7 @@ class LongFormUQ(UncertaintyQuantifier):
         self.sentence_level_bb_scorers = set(SENTENCE_BLACKBOX_SCORERS).intersection(set(scorers))
         self.claim_level_bb_scorers = set(CLAIM_BLACKBOX_SCORERS).intersection(set(scorers))  
         self.matched_claim_bb_scorers = set(MATCHED_CLAIM_BLACKBOX_SCORERS).intersection(set(scorers))
-        if sum(s for s in [self.claim_level_bb_scorers, self.sentence_level_bb_scorers, self.matched_claim_bb_scorers] if s) > 1:
+        if sum(1 for s in [self.claim_level_bb_scorers, self.sentence_level_bb_scorers, self.matched_claim_bb_scorers] if s) > 1:
             warnings.warn("Redundant metrics configuration: Using more than one of sentence-level, claim-level, and matched-claim black-box scorers increases computation time without providing additional information. Use only one of these scorer types for substantially faster runtime.", UserWarning)
         for scorer in scorers:
             if scorer in NLI_SCORERS:

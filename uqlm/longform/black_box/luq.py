@@ -78,7 +78,7 @@ class LUQScorer(ClaimScorer):
             matched_claims = False
         else:  # For matched claim-to-claim comparisons
             samples_for_comparison = sampled_claims   
-            matched_claims = False
+            matched_claims = True
         for (claim_set, sample_for_comparison) in zip(claim_sets, samples_for_comparison):
             claim_entail_scores, claim_noncontradict_scores, claim_constrast_entail_scores = self._compute_claim_level_scores(
                 claims=claim_set, candidates=sample_for_comparison, matched_claims=matched_claims
@@ -113,6 +113,7 @@ class LUQScorer(ClaimScorer):
     
     def _compute_matched_nli_scores(self, claim: str, candidate_claims: List[str]) -> float:
         """Compute maximum matched-claim NLI score"""
+        max_entailment_prob, max_noncontradict_prob, max_contrast_entail_prob = 0, 0, 0
         for candidate in candidate_claims:
             entail_prob, non_contradict_prob, contrast_entail_prob = self._compute_nli_scores(
                 claim=claim, candidate=candidate
