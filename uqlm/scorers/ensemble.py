@@ -23,7 +23,8 @@ import rich
 from rich import print as rprint
 
 from uqlm.judges.judge import LLMJudge
-from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
+from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier
+from uqlm.utils.results import UQResult
 from uqlm.scorers.panel import LLMPanel
 from uqlm.scorers.black_box import BlackBoxUQ
 from uqlm.scorers.white_box import WhiteBoxUQ
