@@ -17,7 +17,8 @@ import math
 import numpy as np
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
+from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier
+from uqlm.utils.results import UQResult
 
 
 class WhiteBoxUQ(UncertaintyQuantifier):

@@ -18,7 +18,7 @@ import tempfile
 import os
 from unittest.mock import patch, MagicMock
 from uqlm.scorers import UQEnsemble
-from uqlm.scorers.baseclass.uncertainty import UQResult
+from uqlm.utils.results import UQResult
 from uqlm.utils.llm_config import save_llm_config, load_llm_config
 from langchain_openai import AzureChatOpenAI
 
