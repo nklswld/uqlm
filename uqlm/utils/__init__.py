@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from uqlm.utils.plots import plot_model_accuracies, plot_filtered_accuracy, ranked_bar_plot
+from uqlm.utils.plots import plot_model_accuracies, plot_filtered_accuracy, plot_ranked_auc
 from uqlm.utils.dataloader import load_dataset, load_example_dataset
 from uqlm.utils.postprocessors import math_postprocessor
 from uqlm.utils.response_generator import ResponseGenerator
@@ -22,4 +22,4 @@ from uqlm.utils.tuner import Tuner
 from uqlm.utils.llm_config import save_llm_config, load_llm_config
 from uqlm.utils.display import ConditionalBarColumn, ConditionalTimeElapsedColumn, ConditionalTextColumn, ConditionalSpinnerColumn
 
-__all__ = ["plot_model_accuracies", "plot_filtered_accuracy", "ranked_bar_plot", "load_example_dataset", "load_dataset", "load_example_dataset", "math_postprocessor", "ResponseGenerator", "UQResult", "Tuner", "save_llm_config", "load_llm_config", "ConditionalBarColumn", "ConditionalTimeElapsedColumn", "ConditionalTextColumn", "ConditionalSpinnerColumn"]
+__all__ = ["plot_model_accuracies", "plot_filtered_accuracy", "plot_ranked_auc", "load_example_dataset", "load_dataset", "load_example_dataset", "math_postprocessor", "ResponseGenerator", "UQResult", "Tuner", "save_llm_config", "load_llm_config", "ConditionalBarColumn", "ConditionalTimeElapsedColumn", "ConditionalTextColumn", "ConditionalSpinnerColumn"]
