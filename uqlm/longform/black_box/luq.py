@@ -43,7 +43,7 @@ class LUQScorer(ClaimScorer):
         self.device = device
         self.nli = NLI(device=device, nli_model_name=nli_model_name, max_length=max_length)
 
-    def evaluate(self, claim_sets: List[List[str]], sampled_responses: List[List[str]], progress_bar: Optional[Progress] = None) -> ClaimScores:
+    def evaluate(self, claim_sets: List[List[str]], sampled_responses: Optional[List[List[str]]] = None, sampled_claims: Optional[List[List[List[str]]]] = None, progress_bar: Optional[Progress] = None) -> ClaimScores:
         """
         Evaluate the LUQ score and claim scores for a list of claims from each original response and sampled responses.
 
@@ -54,6 +54,9 @@ class LUQScorer(ClaimScorer):
 
         sampled_responses : list of list of strings
             Candidate responses to be compared to the decomposed original responses
+            
+        sampled_claims : list of list of list of strings
+            Decomposed responses to be compared to the decomposed original responses
 
         progress_bar : rich.progress.Progress, default=None
             If provided, displays a progress bar while scoring responses
@@ -66,8 +69,20 @@ class LUQScorer(ClaimScorer):
         if progress_bar:
             progress_task = progress_bar.add_task("  - Scoring claim/sentence sets with LUQ...", total=len(claim_sets))
         claim_entail_score_lists, claim_noncontradict_score_lists, claim_constrast_entail_score_lists = [], [], []
-        for (claim_set, candidates) in zip(claim_sets, sampled_responses):
-            claim_entail_scores, claim_noncontradict_scores, claim_constrast_entail_scores = self._compute_claim_level_scores(claim_set, candidates)
+        if sampled_responses and sampled_claims:
+            raise ValueError("Only one of sampled_responses and sampled_claims may be provided.")
+        if sampled_responses: # For response-to-claim or response-to-sentence comparisons
+            if sampled_claims:
+                raise ValueError("Only one of sampled_responses and sampled_claims may be provided.")     
+            samples_for_comparison = sampled_responses 
+            matched_claims = False
+        else:  # For matched claim-to-claim comparisons
+            samples_for_comparison = sampled_claims   
+            matched_claims = False
+        for (claim_set, sample_for_comparison) in zip(claim_sets, samples_for_comparison):
+            claim_entail_scores, claim_noncontradict_scores, claim_constrast_entail_scores = self._compute_claim_level_scores(
+                claims=claim_set, candidates=sample_for_comparison, matched_claims=matched_claims
+            )
             claim_entail_score_lists.append(claim_entail_scores)
             claim_noncontradict_score_lists.append(claim_noncontradict_scores)
             claim_constrast_entail_score_lists.append(claim_constrast_entail_scores)
@@ -76,7 +91,7 @@ class LUQScorer(ClaimScorer):
         time.sleep(0.1)
         return ClaimScores(claim_entail_scores=claim_entail_score_lists, claim_noncontradict_scores=claim_noncontradict_score_lists, claim_constrast_entail_scores=claim_constrast_entail_score_lists)
 
-    def _compute_claim_level_scores(self, claims: List[str], candidates: List[str]) -> Tuple[float, np.ndarray, np.ndarray]:
+    def _compute_claim_level_scores(self, claims: List[str], candidates: List[str]| List[List[str]], matched_claims: bool) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Evaluate the LUQ score and claim scores for a list of claims and candidate responses."""
         shape=(len(claims), len(candidates))
         entail_scores = np.zeros(shape=shape)
@@ -84,7 +99,10 @@ class LUQScorer(ClaimScorer):
         contrast_entail_scores = np.zeros(shape=shape)
         for i, claim in enumerate(claims):
             for j, candidate in enumerate(candidates):
-                entail_prob, noncontradict_prob, contrast_entail_prob = self._compute_nli_scores(claim, candidate)
+                if matched_claims:
+                    entail_prob, noncontradict_prob, contrast_entail_prob = self._compute_matched_nli_scores(claim, candidate)
+                else:
+                    entail_prob, noncontradict_prob, contrast_entail_prob = self._compute_nli_scores(claim, candidate)
                 entail_scores[i, j] = entail_prob
                 noncontradict_scores[i, j] = noncontradict_prob
                 contrast_entail_scores[i, j] = contrast_entail_prob
@@ -92,7 +110,19 @@ class LUQScorer(ClaimScorer):
         claim_noncontradict_scores = noncontradict_scores.mean(axis=1)
         claim_constrast_entail_scores = contrast_entail_scores.mean(axis=1)
         return claim_entail_scores, claim_noncontradict_scores, claim_constrast_entail_scores
-
+    
+    def _compute_matched_nli_scores(self, claim: str, candidate_claims: List[str]) -> float:
+        """Compute maximum matched-claim NLI score"""
+        for candidate in candidate_claims:
+            entail_prob, non_contradict_prob, contrast_entail_prob = self._compute_nli_scores(
+                claim=claim, candidate=candidate
+            )
+            max_entailment_prob = max(max_entailment_prob, float(entail_prob))
+            max_noncontradict_prob = max(max_noncontradict_prob, float(non_contradict_prob))
+            max_contrast_entail_prob = max(max_contrast_entail_prob, float(contrast_entail_prob))
+        return max_entailment_prob, max_noncontradict_prob, max_contrast_entail_prob
+        
+        
     def _compute_nli_scores(self, claim: str, candidate: str) -> float:
         """Compute probabilities from NLI model"""
         nli_probabilities = self.nli.predict(hypothesis=candidate, premise=claim)

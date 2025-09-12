@@ -33,35 +33,12 @@ class ResponseDecomposer:
             relevant parameters to the constructor of their `llm` object.
         """
         self.claim_decomposition_llm = claim_decomposition_llm
-
-    async def decompose_claims(self, responses: List[str], progress_bar: Optional[Progress] = None) -> List[Dict[str, str]]:
+        
+    def decompose_sentences(self, responses: List[str], progress_bar: Optional[Progress] = None) -> List[List[str]]:
         """
         Parameters
         ----------
-        responses: list[str] | str
-            LLM response that will be decomposed into independent claims.
-
-        progress_bar : rich.progress.Progress, default=None
-            If provided, displays a progress bar while scoring responses
-        """
-        if not self.claim_decomposition_llm:
-            raise ValueError("llm must be provided to decompose responses into claims")
-        if progress_bar:
-            self.progress_task = progress_bar.add_task(" - Decomposing responses into claims...", total=len(responses))
-        tasks = [self._get_claims_from_response(response=response, progress_bar=progress_bar) for response in responses]
-        return await asyncio.gather(*tasks)
-
-    async def _get_claims_from_response(self, response: str, progress_bar: Optional[Progress] = None) -> Dict[str, str]:
-        decomposed_response = await self.claim_decomposition_llm.ainvoke(get_claim_breakdown_template(response))
-        if progress_bar:
-            progress_bar.update(self.progress_task, advance=1)
-        return re.split(r"### ", decomposed_response.content)[1:]
-
-    def decompose_sentences(self, responses: List[str], progress_bar: Optional[Progress] = None) -> List[dict]:
-        """
-        Parameters
-        ----------
-        responses: list[str] | str
+        responses: List[str] 
             LLM response that will be decomposed into independent claims.
 
         progress_bar : rich.progress.Progress, default=None
@@ -76,6 +53,41 @@ class ResponseDecomposer:
                 progress_bar.update(progress_task, advance=1)
             sentence_lists.append(self._get_sentences_from_response(response))
         return sentence_lists
+    
+    async def decompose_claims(self, responses: List[str], progress_bar: Optional[Progress] = None) -> List[List[str]]:
+        """
+        Parameters
+        ----------
+        responses: List[str]
+            LLM response that will be decomposed into independent claims.
+
+        progress_bar : rich.progress.Progress, default=None
+            If provided, displays a progress bar while scoring responses
+        """
+        if not self.claim_decomposition_llm:
+            raise ValueError("llm must be provided to decompose responses into claims")
+        if progress_bar:
+            self.progress_task = progress_bar.add_task(" - Decomposing responses into claims...", total=len(responses))
+        tasks = [self._get_claims_from_response(response=response, progress_bar=progress_bar) for response in responses]
+        return await asyncio.gather(*tasks)
+
+    async def decompose_candidate_claims(self, sampled_responses: List[List[str]], progress_bar: Optional[Progress] = None) -> List[Dict[str, str]]:
+        """
+        Parameters
+        ----------
+        sampled_responses: List[List[str]]
+            List of lists of sampled responses to be decomposed
+
+        progress_bar : rich.progress.Progress, default=None
+            If provided, displays a progress bar while scoring responses
+        """
+        if not self.claim_decomposition_llm:
+            raise ValueError("llm must be provided to decompose candidate responses into claims")
+        num_responses = len(sampled_responses[0])
+        if progress_bar:
+            self.progress_task = progress_bar.add_task(" - Decomposing candidate responses into claims...", total=len(responses) * num_responses)
+        tasks = [[self._get_claims_from_response(response=candidate_response, progress_bar=progress_bar) for candidate_response in candidates] for candidates in sampled_responses]
+        return await asyncio.gather(*tasks)
 
     def _get_sentences_from_response(self, text: str) -> list[str]:
         """
@@ -105,3 +117,10 @@ class ResponseDecomposer:
             sentence = sentence.replace("<DECIMAL>", ".")
             sentences[i] = sentence.strip()
         return sentences
+    
+    async def _get_claims_from_response(self, response: str, progress_bar: Optional[Progress] = None) -> Dict[str, str]:
+        """Decompose sigle response into claims"""
+        decomposed_response = await self.claim_decomposition_llm.ainvoke(get_claim_breakdown_template(response))
+        if progress_bar:
+            progress_bar.update(self.progress_task, advance=1)
+        return re.split(r"### ", decomposed_response.content)[1:]
