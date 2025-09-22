@@ -22,7 +22,7 @@ from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
 
 
 class LLMPanel(UncertaintyQuantifier):
-    def __init__(self, judges: List[Union[LLMJudge, BaseChatModel]], llm: Optional[BaseChatModel] = None, system_prompt: str = "You are a helpful assistant.", max_calls_per_min: Optional[int] = None, scoring_templates: Optional[List[str]] = None) -> None:
+    def __init__(self, judges: List[Union[LLMJudge, BaseChatModel]], llm: Optional[BaseChatModel] = None, system_prompt: str = "You are a helpful assistant.", max_calls_per_min: Optional[int] = None, scoring_templates: Optional[List[str]] = None, explanations: bool = False) -> None:
         """
         Class for aggregating multiple instances of LLMJudge using min, max, or majority voting
 
@@ -48,8 +48,13 @@ class LLMPanel(UncertaintyQuantifier):
              These templates are respectively specified as 'true_false_uncertain', 'true_false', 'continuous', and 'likert'
              If specified, must be of equal length to `judges` list. Defaults to 'true_false_uncertain' template
              used by Chen and Mueller (2023) :footcite:`chen2023quantifyinguncertaintyanswerslanguage` for each judge.
+
+        explanations : bool, default=False
+            If True, judges will be instructed to provide explanations along with scores.
+            When enabled, explanation columns will be included in the output DataFrame.
         """
         super().__init__(llm=llm, max_calls_per_min=max_calls_per_min, system_prompt=system_prompt)
+        self.explanations = explanations
         self.scoring_templates = scoring_templates
         if self.scoring_templates:
             if len(self.scoring_templates) != len(judges):
@@ -59,9 +64,13 @@ class LLMPanel(UncertaintyQuantifier):
         self.judges = []
         for judge, template in zip(judges, self.scoring_templates):
             if isinstance(judge, BaseChatModel):
-                judge = LLMJudge(llm=judge, max_calls_per_min=max_calls_per_min, scoring_template=template)
+                judge = LLMJudge(llm=judge, max_calls_per_min=max_calls_per_min, scoring_template=template, explanations=explanations)
             elif not isinstance(judge, LLMJudge):
                 raise ValueError("judges must be a list containing instances of either LLMJudge or BaseChatModel")
+            else:
+                # If it's already an LLMJudge, we need to ensure it has the same explanations setting
+                if judge.explanations != explanations:
+                    raise ValueError("All judges must have the same explanations setting")
             self.judges.append(judge)
 
     async def generate_and_score(self, prompts: List[str]) -> UQResult:
@@ -109,6 +118,11 @@ class LLMPanel(UncertaintyQuantifier):
             tmp = await judge.judge_responses(prompts=prompts, responses=responses)
             scores_lists.append(tmp["scores"])
             data[f"judge_{judge_count}"] = tmp["scores"]
+
+            # Add explanation columns if explanations are enabled
+            if self.explanations and "explanations" in tmp:
+                data[f"judge_{judge_count}_explanation"] = tmp["explanations"]
+
             judge_count += 1
 
         scores_dict = {"avg": [np.mean(scores) for scores in zip(*scores_lists)], "max": [np.max(scores) for scores in zip(*scores_lists)], "min": [np.min(scores) for scores in zip(*scores_lists)], "median": [np.median(scores) for scores in zip(*scores_lists)]}
