@@ -14,7 +14,8 @@
 
 import pytest
 import json
-from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
+from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier
+from uqlm.utils.results import UQResult
 from uqlm.judges.judge import LLMJudge
 from langchain_openai import AzureChatOpenAI
 
@@ -116,9 +117,6 @@ def test_uq_result():
     # Test all properties including sampled_responses
     assert isinstance(uq_result, UQResult)
     assert uq_result.data is not None
-    assert uq_result.responses is not None
-    assert uq_result.confidence_scores is not None
-    assert uq_result.sampled_responses is not None
     assert uq_result.to_dict() == result_dict_with_sampled
     df = uq_result.to_df()
     assert len(df) == 2
