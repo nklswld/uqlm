@@ -18,7 +18,7 @@ import io
 
 import numpy as np
 import pandas as pd
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union, Tuple
 
 from uqlm.utils.response_generator import ResponseGenerator
 
@@ -66,8 +66,72 @@ def cat_instruction(choices):
 TEMPLATE_TO_INSTRUCTION = {"continuous": CONTINUOUS_SCORE_INSTRUCTION, "true_false_uncertain": cat_instruction(CHOICES_3_CLASS), "true_false": cat_instruction(CHOICES_2_CLASS), "likert": LIKERT_SCORE_INSTRUCTION}
 
 
+# Explanation-enabled templates
+def cat_instruction_with_explanations(choices):
+    return f"""Your task is to look at the question and answer provided and determine if the answer is correct. 
+You are to respond with the following format:
+
+Score: {choices}
+Explanation: [Brief explanation of your reasoning]
+
+Example:
+Score: Incorrect
+Explanation: The answer mentions Benjamin Franklin, but George Washington was the first president.
+
+YOUR ANSWER MUST FOLLOW THIS EXACT FORMAT. DO NOT ANSWER THE QUESTION AGAIN. ONLY DETERMINE IF THE ANSWER TO THE QUESTION IS CORRECT."""
+
+
+CONTINUOUS_SCORE_INSTRUCTION_WITH_EXPLANATIONS = """
+How likely is the above answer to be correct? Analyze the answer and give your confidence in this answer between 0 (lowest) and 100 (highest), with 100 being certain the answer is correct, and 0 being certain the answer is incorrect. 
+
+You are to respond with the following format:
+
+Score: [0-100]
+Explanation: [Brief explanation of your reasoning]
+
+# Example 1
+## Data to analyze
+Question: Who was the first president of the United States?, Proposed Answer: Benjamin Franklin.
+
+## Your response
+Score: 4
+Explanation: Benjamin Franklin was never president. George Washington was the first president of the United States.
+
+# Example 2
+## Data to analyze
+Question: What is 2+2?, Proposed Answer: 4
+
+## Your response
+Score: 99
+Explanation: This is a basic arithmetic question and 2+2=4 is correct.
+"""
+
+
+LIKERT_SCORE_INSTRUCTION_WITH_EXPLANATIONS = """
+You are a fair assessment expert evaluating the CORRECTNESS of an answer to a question.
+Your task is to score the answer on a scale from 1 to 5, with 5 being the highest:
+1 - Completely incorrect: The answer is entirely wrong or irrelevant.
+2 - Mostly incorrect: The answer contains significant errors or misconceptions.
+3 - Partially correct: The answer has some correct elements but also contains errors.
+4 - Mostly correct: The answer is largely accurate with only minor errors or omissions.
+5 - Completely correct: The answer is fully accurate and comprehensive.
+
+You are to respond with the following format:
+
+Score: [1-5]
+Explanation: [Brief explanation of your reasoning]
+
+Example:
+Score: 1
+Explanation: The answer is completely wrong as it mentions Benjamin Franklin instead of George Washington.
+"""
+
+
+TEMPLATE_TO_INSTRUCTION_WITH_EXPLANATIONS = {"continuous": CONTINUOUS_SCORE_INSTRUCTION_WITH_EXPLANATIONS, "true_false_uncertain": cat_instruction_with_explanations(CHOICES_3_CLASS), "true_false": cat_instruction_with_explanations(CHOICES_2_CLASS), "likert": LIKERT_SCORE_INSTRUCTION_WITH_EXPLANATIONS}
+
+
 class LLMJudge(ResponseGenerator):
-    def __init__(self, llm: Any, max_calls_per_min: Optional[int] = None, scoring_template: str = "true_false_uncertain", system_prompt: Optional[str] = None, template_ques_ans: Optional[str] = None, keywords_to_scores_dict: Optional[Dict] = None) -> None:
+    def __init__(self, llm: Any, max_calls_per_min: Optional[int] = None, scoring_template: str = "true_false_uncertain", system_prompt: Optional[str] = None, template_ques_ans: Optional[str] = None, keywords_to_scores_dict: Optional[Dict] = None, explanations: bool = False) -> None:
         """
         Class for using LLM-as-a-judge to score proposed answers to questions based on correctness. Four off-the-shelf
         templates are offered: incorrect/uncertain/correct (0/0.5/1), incorrect/correct (0/1), continuous score (0 to 1), and likert
@@ -107,11 +171,17 @@ class LLMJudge(ResponseGenerator):
             0.5: ["not sure", "not certain", "unsure", "uncertain"],
             1.0: ["correct", "right"],
             }
+
+        explanations : bool, default=False
+            If True, the judge will be instructed to provide explanations along with scores.
+            When enabled, responses will be in format "Score: X\nExplanation: Y" and explanation
+            columns will be included in the output DataFrame.
         """
         super().__init__(llm=llm, max_calls_per_min=max_calls_per_min)
         self.scoring_template = scoring_template
         self.template_ques_ans = template_ques_ans
         self.keywords_to_scores_dict = keywords_to_scores_dict
+        self.explanations = explanations
         self._validate_inputs()
         self.system_prompt = self.instruction if not system_prompt else system_prompt
 
@@ -133,21 +203,53 @@ class LLMJudge(ResponseGenerator):
         Returns
         -------
         Dict
-            Dictionary containing Q/A concatenation prompts, judge responses, and judge scores
+            Dictionary containing Q/A concatenation prompts, judge responses, judge scores, and optionally explanations
         """
         concatenated_qa = [self.template_ques_ans.format(prompts[i], responses[i]) for i in range(len(prompts))]
         print("Generating LLMJudge scores...")
         with contextlib.redirect_stdout(io.StringIO()):
             data = await self.generate_responses(prompts=concatenated_qa, count=1)
-        df = pd.DataFrame({"judge_prompts": data["data"]["prompt"], "judge_responses": data["data"]["response"], "scores": self._extract_answers(responses=data["data"]["response"])})
+
+        # Extract scores and explanations
+        extracted_data = self._extract_answers(responses=data["data"]["response"])
+
+        if self.explanations:
+            scores, explanations = extracted_data
+            df = pd.DataFrame({"judge_prompts": data["data"]["prompt"], "judge_responses": data["data"]["response"], "scores": scores, "explanations": explanations})
+        else:
+            scores = extracted_data
+            df = pd.DataFrame({"judge_prompts": data["data"]["prompt"], "judge_responses": data["data"]["response"], "scores": scores})
+
+        # Retry logic for failed extractions
         retry = 0
         while retry <= retries:
             retry += 1
-            df_sub = df[pd.isna(df.scores)]
-            if len(df_sub) > 0:
+
+            # Find any failures
+            score_failures = df[pd.isna(df.scores)]
+            explanation_failures = df[pd.isna(df.explanations)] if self.explanations else pd.DataFrame()
+
+            # If ANY failures exist, retry BOTH score and explanation
+            if len(score_failures) > 0 or len(explanation_failures) > 0:
+                # Get all failure indices
+                failure_indices = set(score_failures.index) | set(explanation_failures.index)
+
                 with contextlib.redirect_stdout(io.StringIO()):
-                    tmp = await self.generate_responses(prompts=list(df_sub.judge_prompts), count=1, system_prompt=self.system_prompt)
-                df.loc[df_sub.index, "scores"] = self._extract_answers(responses=tmp["data"]["response"])
+                    tmp = await self.generate_responses(prompts=list(df.loc[list(failure_indices), "judge_prompts"]), count=1, system_prompt=self.system_prompt)
+
+                retry_data = self._extract_answers(responses=tmp["data"]["response"])
+
+                if self.explanations:
+                    retry_scores, retry_explanations = retry_data
+                    df.loc[list(failure_indices), "scores"] = retry_scores
+                    df.loc[list(failure_indices), "explanations"] = retry_explanations
+                else:
+                    df.loc[list(failure_indices), "scores"] = retry_data
+
+            # Exit if no more failures
+            if len(score_failures) == 0 and (not self.explanations or len(explanation_failures) == 0):
+                break
+
         return {col: list(df[col]) for col in df.columns}
 
     def _default_template_ques_ans(self):
@@ -156,24 +258,62 @@ class LLMJudge(ResponseGenerator):
         default_template = qa_text + self.instruction
         return default_template
 
-    def _extract_answers(self, responses: List[str]) -> List[float]:
+    def _extract_answers(self, responses: List[str]) -> Union[List[float], Tuple[List[float], List[str]]]:
         """
         List-level implementation of _extract_single_answer
         """
-        return [self._extract_single_answer(r) for r in responses]
+        if self.explanations:
+            scores, explanations = zip(*[self._extract_single_answer(r) for r in responses])
+            return list(scores), list(explanations)
+        else:
+            return [self._extract_single_answer(r) for r in responses]
 
-    def _extract_single_answer(self, response: str) -> float:
+    def _extract_single_answer(self, response: str) -> Union[float, Tuple[float, str]]:
         """
-        A method to extract score from an llm response based on provided score-keyword dictionary.
+        A method to extract score and optionally explanation from an llm response.
+        Returns (score, explanation) if explanations=True, otherwise returns score only.
         """
         if response in [None, np.nan]:
-            return np.nan
+            return (np.nan, np.nan) if self.explanations else np.nan
 
+        if self.explanations:
+            return self._parse_structured_response(response)
+        else:
+            return self._extract_score_from_text(response)
+
+    def _parse_structured_response(self, response: str) -> Tuple[float, str]:
+        """
+        Parse structured response format: "Score: X\nExplanation: Y"
+        """
+        try:
+            if "Score:" in response and "Explanation:" in response:
+                # Extract score part
+                score_part = response.split("Score:")[1].split("Explanation:")[0].strip()
+                explanation_part = response.split("Explanation:")[1].strip()
+
+                # Extract score using existing logic
+                score = self._extract_score_from_text(score_part)
+
+                return score, explanation_part
+            else:
+                # Fallback: try to extract score from entire response
+                score = self._extract_score_from_text(response)
+                return score, "No explanation provided"
+
+        except Exception:
+            return np.nan, "Failed to parse response"
+
+    def _extract_score_from_text(self, response: str) -> float:
+        """
+        Extract score from text using the standard extraction logic.
+        Used for both structured responses and backward compatibility.
+        """
         if self.scoring_template == "continuous":
             score = "".join(c for c in response if c.isdigit())
             if len(score) > 0:
                 if 0.0 <= float(score) <= 100.0:
                     return float(score) / 100.0  # normalize
+            return np.nan
 
         elif self.scoring_template == "likert":
             response = response.strip().lower()
@@ -182,12 +322,16 @@ class LLMJudge(ResponseGenerator):
             for score, keywords in self.keywords_to_scores_dict.items():
                 if any(keyword in response for keyword in keywords):
                     return score
+            return np.nan
 
         elif self.scoring_template in ["true_false_uncertain", "true_false", None]:
             response = response.lower()
             for score, keywords in self.keywords_to_scores_dict.items():
                 if any(keyword in response for keyword in keywords):
                     return score
+            return np.nan
+
+        return np.nan
 
     def _validate_inputs(self):
         """Validate inputs"""
@@ -199,7 +343,11 @@ class LLMJudge(ResponseGenerator):
                     raise ValueError("values in keywords_to_scores_dict must be lists of strings")
                 # TODO: validate value ordering for substrings of other keys
         if self.scoring_template in TEMPLATE_TO_INSTRUCTION:
-            self.instruction = TEMPLATE_TO_INSTRUCTION[self.scoring_template]
+            # Choose template based on explanations setting
+            if self.explanations:
+                self.instruction = TEMPLATE_TO_INSTRUCTION_WITH_EXPLANATIONS[self.scoring_template]
+            else:
+                self.instruction = TEMPLATE_TO_INSTRUCTION[self.scoring_template]
             self.template_ques_ans = self._default_template_ques_ans()
             # Choose the appropriate keywords dictionary based on template
             if self.scoring_template == "likert":
