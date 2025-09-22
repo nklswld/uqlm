@@ -17,7 +17,8 @@ import math
 import numpy as np
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
+from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier
+from uqlm.utils.results import UQResult
 
 
 class WhiteBoxUQ(UncertaintyQuantifier):
@@ -46,7 +47,7 @@ class WhiteBoxUQ(UncertaintyQuantifier):
         super().__init__(llm=llm, max_calls_per_min=max_calls_per_min, system_prompt=system_prompt)
         self.scorers = scorers if scorers else self.white_box_names
 
-    async def generate_and_score(self, prompts: List[str]) -> UQResult:
+    async def generate_and_score(self, prompts: List[str], show_progress_bars: Optional[bool] = True) -> UQResult:
         """
         Generate responses and compute white-box confidence scores based on extracted token probabilities.
 
@@ -54,6 +55,9 @@ class WhiteBoxUQ(UncertaintyQuantifier):
         ----------
         prompts : list of str
             A list of input prompts for the model.
+
+        show_progress_bars : bool, default=True
+            If True, displays a progress bar while generating and scoring responses
 
         Returns
         -------
@@ -64,8 +68,16 @@ class WhiteBoxUQ(UncertaintyQuantifier):
         BaseChatModel must have logprobs attribute and have logprobs=True
         """
         self.llm.logprobs = True
-        responses = await self.generate_original_responses(prompts)
-        return self.score(prompts=prompts, responses=responses, logprobs_results=self.logprobs)
+
+        self._construct_progress_bar(show_progress_bars)
+        self._display_generation_header(show_progress_bars, white_box=True)
+
+        responses = await self.generate_original_responses(prompts, progress_bar=self.progress_bar)
+        result = self.score(prompts=prompts, responses=responses, logprobs_results=self.logprobs)
+
+        self._stop_progress_bar()
+        self.progress_bar = None  # if re-run ensure the same progress object is not used
+        return result
 
     def score(self, logprobs_results: List[List[Dict[str, Any]]], prompts: Optional[List[str]] = None, responses: Optional[List[str]] = None) -> UQResult:
         """
