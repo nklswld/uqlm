@@ -23,6 +23,7 @@ from rich.progress import Progress
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
+
 class ResponseGenerator:
     def __init__(self, llm: BaseChatModel = None, max_calls_per_min: Optional[int] = None, use_n_param: bool = False) -> None:
         """
@@ -55,8 +56,8 @@ class ResponseGenerator:
         Parameters
         ----------
         prompts : List[str | List[BaseMessage]]
-            List of prompts from which LLM responses will be generated. Prompts in list may be strings or lists of BaseMessage. If providing 
-            input type List[List[BaseMessage]], refer to https://python.langchain.com/docs/concepts/messages/#langchain-messages for support. 
+            List of prompts from which LLM responses will be generated. Prompts in list may be strings or lists of BaseMessage. If providing
+            input type List[List[BaseMessage]], refer to https://python.langchain.com/docs/concepts/messages/#langchain-messages for support.
 
         system_prompt : str, default=None
             Optional argument for user to provide custom system prompt. If prompts are list of strings and system_prompt is None,
@@ -105,7 +106,7 @@ class ResponseGenerator:
         logprobs = generations["logprobs"]
         return {"data": {"prompt": self._enforce_strings(duplicated_prompts), "response": self._enforce_strings(responses)}, "metadata": {"system_prompt": system_prompt, "temperature": self.llm.temperature, "count": self.count, "logprobs": logprobs}}
 
-    def _create_tasks(self, prompts: List[str]) -> Tuple[List[Any], List[str]]:
+    def _create_tasks(self, prompts: List[str | List[BaseMessage]]) -> Tuple[List[Any], List[str]]:
         """
         Creates a list of async tasks and returns duplicated prompt list
         with each prompt duplicated `count` times
@@ -123,7 +124,7 @@ class ResponseGenerator:
         if self.use_n_param:
             self.llm.n = count
 
-    async def _generate_in_batches(self, prompts: List[str], progress_bar: Optional[bool] = True) -> Tuple[Dict[str, List[Any]], List[str]]:
+    async def _generate_in_batches(self, prompts: List[str | List[BaseMessage]], progress_bar: Optional[bool] = True) -> Tuple[Dict[str, List[Any]], List[str]]:
         """Executes async IO with langchain in batches to avoid rate limit error"""
         assert self.count > 0, "count must be greater than 0"
         self.progress_bar = progress_bar
@@ -149,7 +150,7 @@ class ResponseGenerator:
         time.sleep(0.1)
         return generations, duplicated_prompts
 
-    async def _process_batch(self, prompt_batch: List[str], duplicated_prompts: List[str], generations: Dict[str, List[Any]], check_batch_time: bool) -> None:
+    async def _process_batch(self, prompt_batch: List[str | List[BaseMessage]], duplicated_prompts: List[str], generations: Dict[str, List[Any]], check_batch_time: bool) -> None:
         """Process a single batch of prompts"""
         start = time.time()
         # generate responses for current batch
@@ -178,9 +179,9 @@ class ResponseGenerator:
         elif isinstance(prompt, list):
             if all(isinstance(item, BaseMessage) for item in prompt):
                 messages = prompt if not self.system_message else [self.system_message] + prompt
-        else: 
+        else:
             raise ValueError("prompts must be list of strings or list of lists of BaseMessage instances. For support with LangChain BaseMessage usage, refer here: https://python.langchain.com/docs/concepts/messages")
-        
+
         logprobs = [None] * count
         result = await self.llm.agenerate([messages])
         if self.progress_bar:
