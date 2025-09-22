@@ -181,8 +181,7 @@ class ScoreCalibrator:
         for scorer in uq_result.data:
             if scorer not in Ignore_Columns:
                 metrics[scorer] = evaluate_calibration(uq_result.data[scorer], correct_indicators, plot=plot, axes=axes, title=scorer)
-        print(pd.DataFrame(metrics).T)
-        return metrics
+        return pd.DataFrame(metrics).T
 
 
 def fit_and_evaluate_calibrators(scores: Union[List[float], np.ndarray], correct_labels: Union[List[bool], List[int], np.ndarray], test_size: float = 0.2, random_state: Optional[int] = None, methods: Optional[List[str]] = None) -> tuple[dict, pd.DataFrame, dict]:
