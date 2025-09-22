@@ -23,7 +23,7 @@ from uqlm.utils.results import UQResult
 
 
 class LLMPanel(UncertaintyQuantifier):
-    def __init__(self, judges: List[Union[LLMJudge, BaseChatModel]], llm: Optional[BaseChatModel] = None, system_prompt: str = "You are a helpful assistant.", max_calls_per_min: Optional[int] = None, scoring_templates: Optional[List[str]] = None) -> None:
+    def __init__(self, judges: List[Union[LLMJudge, BaseChatModel]], llm: Optional[BaseChatModel] = None, system_prompt: Optional[str] = None, max_calls_per_min: Optional[int] = None, scoring_templates: Optional[List[str]] = None) -> None:
         """
         Class for aggregating multiple instances of LLMJudge using min, max, or majority voting
 
@@ -40,8 +40,8 @@ class LLMPanel(UncertaintyQuantifier):
             Used to control rate limiting. Will be used for original llm and any judges constructed
             from instances of BaseChatModel in judges
 
-        system_prompt : str or None, default="You are a helpful assistant."
-            Optional argument for user to provide custom system prompt
+        system_prompt : str, default=None
+            Optional argument for user to provide custom system prompt. If None, defaults to "You are a helpful assistant."
 
         scoring_templates : List[str], default=None
              Specifies which off-the-shelf template to use for each judge. Four off-the-shelf templates offered:
@@ -82,6 +82,8 @@ class LLMPanel(UncertaintyQuantifier):
         UQResult
             UQResult containing prompts, responses, Q/A concatenations, judge responses, and judge scores
         """
+        if not all(isinstance(item, str) for item in prompts):
+            raise ValueError("prompts must be list of strings when using LLMPanel")
         self._construct_progress_bar(show_progress_bars)
         self._display_generation_header(show_progress_bars)
 
