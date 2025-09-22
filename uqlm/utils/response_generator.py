@@ -21,9 +21,7 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 import numpy as np
 from rich.progress import Progress
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages.human import HumanMessage
-from langchain_core.messages.system import SystemMessage
-
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
 class ResponseGenerator:
     def __init__(self, llm: BaseChatModel = None, max_calls_per_min: Optional[int] = None, use_n_param: bool = False) -> None:
@@ -50,18 +48,19 @@ class ResponseGenerator:
         self.progress_task = None
         self.is_judge = False
 
-    async def generate_responses(self, prompts: List[str], system_prompt: str = "You are a helpful assistant.", count: int = 1, progress_bar: Optional[Progress] = None) -> Dict[str, Any]:
+    async def generate_responses(self, prompts: List[str | List[BaseMessage]], system_prompt: Optional[str] = None, count: int = 1, progress_bar: Optional[Progress] = None) -> Dict[str, Any]:
         """
-        Generates evaluation dataset from a provided set of prompts. For each prompt,
-        `self.count` responses are generated.
+        Generates responses from a provided set of prompts. For each prompt, `count` responses are generated.
 
         Parameters
         ----------
-        prompts : list of strings
-            List of prompts from which LLM responses will be generated
+        prompts : List[str | List[BaseMessage]]
+            List of prompts from which LLM responses will be generated. Prompts in list may be strings or lists of BaseMessage. If providing 
+            input type List[List[BaseMessage]], refer to https://python.langchain.com/docs/concepts/messages/#langchain-messages for support. 
 
-        system_prompt : str or None, default="You are a helpful assistant."
-            Optional argument for user to provide custom system prompt
+        system_prompt : str, default=None
+            Optional argument for user to provide custom system prompt. If prompts are list of strings and system_prompt is None,
+            defaults to "You are a helpful assistant."
 
         count : int, default=1
             Specifies number of responses to generate for each prompt.
@@ -95,11 +94,10 @@ class ResponseGenerator:
         assert isinstance(self.llm, BaseChatModel), """
             llm must be an instance of langchain_core.language_models.chat_models.BaseChatModel
         """
-        assert all(isinstance(prompt, str) for prompt in prompts), "If using custom prompts, please ensure `prompts` is of type list[str]"
         if self.llm.temperature == 0:
             assert count == 1, "temperature must be greater than 0 if count > 1"
         self._update_count(count)
-        self.system_message = SystemMessage(system_prompt)
+        self.system_message = None if not system_prompt else SystemMessage(system_prompt)
 
         generations, duplicated_prompts = await self._generate_in_batches(prompts=prompts, progress_bar=progress_bar)
 
@@ -172,9 +170,17 @@ class ResponseGenerator:
         if (stop - start < 60) and check_batch_time:
             time.sleep(61 - stop + start)
 
-    async def _async_api_call(self, prompt: str, count: int = 1) -> Dict[str, Any]:
+    async def _async_api_call(self, prompt: str | List[BaseMessage], count: int = 1) -> Dict[str, Any]:
         """Generates responses asynchronously using an RunnableSequence object"""
-        messages = [self.system_message, HumanMessage(prompt)]
+        if isinstance(prompt, str):
+            system_message = SystemMessage("You are a helpful assistant.") if not self.system_message else self.system_message
+            messages = [system_message, HumanMessage(prompt)]
+        elif isinstance(prompt, list):
+            if all(isinstance(item, BaseMessage) for item in prompt):
+                messages = prompt if not self.system_message else [self.system_message] + prompt
+        else: 
+            raise ValueError("prompts must be list of strings or list of lists of BaseMessage instances. For support with LangChain BaseMessage usage, refer here: https://python.langchain.com/docs/concepts/messages")
+        
         logprobs = [None] * count
         result = await self.llm.agenerate([messages])
         if self.progress_bar:
