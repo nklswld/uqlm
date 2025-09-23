@@ -23,7 +23,8 @@ import rich
 from rich import print as rprint
 
 from uqlm.judges.judge import LLMJudge
-from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
+from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier
+from uqlm.utils.results import UQResult
 from uqlm.scorers.panel import LLMPanel
 from uqlm.scorers.black_box import BlackBoxUQ
 from uqlm.scorers.white_box import WhiteBoxUQ
@@ -166,7 +167,7 @@ class UQEnsemble(UncertaintyQuantifier):
 
         responses = await self.generate_original_responses(prompts, progress_bar=self.progress_bar)
         if self.black_box_components:
-            sampled_responses = await self.generate_candidate_responses(prompts, progress_bar=self.progress_bar)
+            sampled_responses = await self.generate_candidate_responses(prompts, num_responses=self.num_responses, progress_bar=self.progress_bar)
         else:
             sampled_responses = None
 
