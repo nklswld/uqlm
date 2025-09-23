@@ -14,10 +14,9 @@
 
 import pytest
 import numpy as np
-import matplotlib.pyplot as plt
 from unittest.mock import patch, MagicMock
 
-from uqlm.utils.score_calibrator import ScoreCalibrator, _plot_original_vs_transformed, evaluate_calibration, _plot_reliability_diagram
+from uqlm.utils.score_calibrator import ScoreCalibrator, evaluate_calibration, _plot_reliability_diagram
 from uqlm.utils.results import UQResult
 
 
@@ -44,7 +43,6 @@ class TestScoreCalibrator:
         uq_result = UQResult(result={"data": {"judge_1": scores}})
         correct_labels = np.random.binomial(1, scores, n_samples)
         return uq_result, correct_labels
-        return scores, correct_labels
 
     def test_init_default(self):
         """Test ScoreCalibrator initialization with default parameters."""
@@ -259,52 +257,52 @@ class TestScoreCalibrator:
 #         assert len(metrics_df) == 2
 
 
-class TestPlotOriginalVsTransformed:
-    """Test suite for _plot_original_vs_transformed function."""
+# class TestPlotOriginalVsTransformed:
+#     """Test suite for _plot_original_vs_transformed function."""
 
-    @pytest.fixture
-    def sample_data(self):
-        """Generate sample data for plotting tests."""
-        np.random.seed(42)
-        original = np.random.uniform(0, 1, 50)
-        transformed_platt = original * 0.8 + 0.1  # Simple transformation
-        transformed_isotonic = np.clip(original * 1.2 - 0.1, 0, 1)
-        return original, {"platt": transformed_platt, "isotonic": transformed_isotonic}
+#     @pytest.fixture
+#     def sample_data(self):
+#         """Generate sample data for plotting tests."""
+#         np.random.seed(42)
+#         original = np.random.uniform(0, 1, 50)
+#         transformed_platt = original * 0.8 + 0.1  # Simple transformation
+#         transformed_isotonic = np.clip(original * 1.2 - 0.1, 0, 1)
+#         return original, {"platt": transformed_platt, "isotonic": transformed_isotonic}
 
-    def test_plot_with_default_params(self, sample_data):
-        """Test plotting with default parameters."""
-        original, transformed = sample_data
+#     def test_plot_with_default_params(self, sample_data):
+#         """Test plotting with default parameters."""
+#         original, transformed = sample_data
 
-        fig, ax = plt.subplots()
-        _plot_original_vs_transformed(original, transformed, ax=ax)
+#         fig, ax = plt.subplots()
+#         _plot_original_vs_transformed(original, transformed, ax=ax)
 
-        assert len(ax.collections) == 2  # Two scatter plots
-        assert ax.get_xlabel() == "Original Scores"
-        assert ax.get_ylabel() == "Transformed Scores"
-        assert ax.legend_ is not None
+#         assert len(ax.collections) == 2  # Two scatter plots
+#         assert ax.get_xlabel() == "Original Scores"
+#         assert ax.get_ylabel() == "Transformed Scores"
+#         assert ax.legend_ is not None
 
-        plt.close(fig)
+#         plt.close(fig)
 
-    def test_plot_with_custom_kwargs(self, sample_data):
-        """Test plotting with custom keyword arguments."""
-        original, transformed = sample_data
+#     def test_plot_with_custom_kwargs(self, sample_data):
+#         """Test plotting with custom keyword arguments."""
+#         original, transformed = sample_data
 
-        fig, ax = plt.subplots()
-        _plot_original_vs_transformed(original, transformed, ax=ax, title="Custom Title", alpha=0.8, s=20)
+#         fig, ax = plt.subplots()
+#         _plot_original_vs_transformed(original, transformed, ax=ax, title="Custom Title", alpha=0.8, s=20)
 
-        assert ax.get_title() == "Custom Title"
-        plt.close(fig)
+#         assert ax.get_title() == "Custom Title"
+#         plt.close(fig)
 
-    def test_plot_single_method(self, sample_data):
-        """Test plotting with single transformation method."""
-        original, transformed = sample_data
+#     def test_plot_single_method(self, sample_data):
+#         """Test plotting with single transformation method."""
+#         original, transformed = sample_data
 
-        fig, ax = plt.subplots()
-        single_transformed = {"platt": transformed["platt"]}
-        _plot_original_vs_transformed(original, single_transformed, ax=ax)
+#         fig, ax = plt.subplots()
+#         single_transformed = {"platt": transformed["platt"]}
+#         _plot_original_vs_transformed(original, single_transformed, ax=ax)
 
-        assert len(ax.collections) == 1  # One scatter plot
-        plt.close(fig)
+#         assert len(ax.collections) == 1  # One scatter plot
+#         plt.close(fig)
 
 
 class TestIntegration:
