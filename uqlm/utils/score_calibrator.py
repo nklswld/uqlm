@@ -24,7 +24,6 @@ import pandas as pd
 from typing import Literal, Optional, List, Union
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import brier_score_loss, log_loss
 import matplotlib.pyplot as plt
 from uqlm.utils.results import UQResult
@@ -184,137 +183,6 @@ class ScoreCalibrator:
         return pd.DataFrame(metrics).T
 
 
-def fit_and_evaluate_calibrators(scores: Union[List[float], np.ndarray], correct_labels: Union[List[bool], List[int], np.ndarray], test_size: float = 0.2, random_state: Optional[int] = None, methods: Optional[List[str]] = None) -> tuple[dict, pd.DataFrame, dict]:
-    """
-    Fit and evaluate multiple calibration methods on the same data.
-
-    Parameters
-    ----------
-    scores : array-like
-        Training confidence scores.
-    correct_labels : array-like
-        Training binary correctness labels (True/False or 1/0).
-    test_size : float, default=0.2
-        Proportion of data to use for testing.
-    random_state : int, optional
-        Random state for train-test split.
-    methods : list of str, optional
-        List of calibration methods to compare. Default is ['platt', 'isotonic'].
-
-    Returns
-    -------
-    calibrators : dict
-        Dictionary containing fitted ScoreCalibrator instances for each method.
-        Keys are method names ('platt', 'isotonic'), values are fitted calibrators.
-
-    metrics_df : pd.DataFrame
-        DataFrame comparing calibration metrics across methods with columns:
-
-        - 'brier_score' : float
-            Brier score (lower is better) - measures accuracy of probabilistic predictions
-        - 'log_loss' : float
-            Logarithmic loss (lower is better) - penalizes confident wrong predictions
-        - 'ece' : float
-            Expected Calibration Error - average difference between confidence and accuracy
-        - 'mce' : float
-            Maximum Calibration Error - worst-case calibration error across bins
-
-        Index contains method names: 'platt', 'isotonic'.
-
-    figures : dict
-        Dictionary containing matplotlib figures:
-        - 'transformation_comparison' : Figure showing original vs transformed scores
-        - '{method}_calibration' : Figure showing calibration plots for each method
-
-    See Also
-    --------
-    ScoreEvaluator.evaluate_calibration : Detailed metric definitions and computation
-    """
-    if methods is None:
-        methods = ["platt", "isotonic"]
-    results = []
-    calibrated_scores_dict = {}
-    figures = {}
-    calibrators = {}
-
-    # Convert to numpy arrays
-    scores = np.array(scores)
-    correct_labels = np.array(correct_labels, dtype=int)
-
-    # Train-test split
-    train_scores, test_scores, train_labels, test_labels = train_test_split(scores, correct_labels, test_size=test_size, random_state=random_state, stratify=correct_labels)
-
-    # Create evaluator instance
-    transformation_data = {}
-    for method in methods:
-        calibrator = ScoreCalibrator(method=method)
-        calibrator.fit(train_scores, train_labels)
-        calibrators[method] = calibrator
-        eval_scores = calibrator.transform(test_scores)
-        calibrated_scores_dict[method] = eval_scores
-        transformation_data[method] = eval_scores
-
-        metrics = evaluate_calibration(eval_scores, test_labels, plot=False, axes=None)
-        metrics["method"] = method
-        results.append(metrics)
-
-    # Create figures
-    # 1. Transformation comparison
-    fig, axes = plt.subplots(1, 1, figsize=(3.5, 3.5))
-    _plot_original_vs_transformed(test_scores, transformation_data, ax=axes)
-    plt.close(fig)
-    figures["transformation_comparison"] = fig
-
-    # 2. Calibration plots for each method
-    for method in methods:
-        eval_scores = calibrated_scores_dict[method]
-        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-        fig.suptitle(f"Calibration Plots for {method} Scores")
-        evaluate_calibration(eval_scores, test_labels, plot=True, axes=axes)
-        plt.close(fig)
-        figures[f"{method}_calibration"] = fig
-
-    return calibrators, pd.DataFrame(results).set_index("method"), figures
-
-
-def _plot_original_vs_transformed(original_scores: np.ndarray, transformed_data: Union[np.ndarray, dict], ax: plt.Axes = None, **kwargs):
-    """
-    Plot original vs transformed scores with a perfect calibration reference line.
-
-    Parameters
-    ----------
-    original_scores : np.ndarray
-        The original (uncalibrated) scores.
-    transformed_data : dict
-        multiple transformations with method names as keys.
-    ax : matplotlib.axes.Axes, optional
-        Axes to plot on. If None, creates new figure.
-    kwargs : dict
-        Optional keyword arguments for customization.
-    """
-    title = kwargs.get("title", "Score Transformation Comparison")
-    alpha = kwargs.get("alpha", 0.5)
-    s = kwargs.get("s", 10)
-
-    if ax is None:
-        fig, ax = plt.subplots(figsize=(8, 6))
-
-    # Handle both single transformation and multiple transformations
-    colors = {"platt": "blue", "isotonic": "orange"}
-    for method, transformed_scores in transformed_data.items():
-        color = colors.get(method, None)
-        ax.scatter(original_scores, transformed_scores, alpha=alpha, s=s, label=f"{method.title()} Calibration", color=color)
-
-    ax.set_xlabel("Original Scores")
-    ax.set_ylabel("Transformed Scores")
-    ax.set_title(title)
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    ax.set_title(title)
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-
-
 def evaluate_calibration(scores: Union[List[float], np.ndarray], correct_indicators: "Union[List[int], np.ndarray]", n_bins: int = 10, plot: bool = True, axes: "Union[tuple, None]" = None, title: str = None) -> dict:
     """
     Evaluate the calibration quality of scores.
@@ -417,7 +285,7 @@ def _plot_reliability_diagram(bin_boundaries: np.ndarray, bin_counts: list, bin_
     if axes is None:
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
         if title is not None:
-            fig.suptitle(f"Calibration Plots for {title}")
+            fig.suptitle(f"Plots for {title}")
         show_plot = True
     else:
         show_plot = False
@@ -456,3 +324,134 @@ def _plot_reliability_diagram(bin_boundaries: np.ndarray, bin_counts: list, bin_
     if show_plot:
         plt.tight_layout()
         plt.show()
+
+
+# def fit_and_evaluate_calibrators(scores: Union[List[float], np.ndarray], correct_labels: Union[List[bool], List[int], np.ndarray], test_size: float = 0.2, random_state: Optional[int] = None, methods: Optional[List[str]] = None) -> tuple[dict, pd.DataFrame, dict]:
+#     """
+#     Fit and evaluate multiple calibration methods on the same data.
+
+#     Parameters
+#     ----------
+#     scores : array-like
+#         Training confidence scores.
+#     correct_labels : array-like
+#         Training binary correctness labels (True/False or 1/0).
+#     test_size : float, default=0.2
+#         Proportion of data to use for testing.
+#     random_state : int, optional
+#         Random state for train-test split.
+#     methods : list of str, optional
+#         List of calibration methods to compare. Default is ['platt', 'isotonic'].
+
+#     Returns
+#     -------
+#     calibrators : dict
+#         Dictionary containing fitted ScoreCalibrator instances for each method.
+#         Keys are method names ('platt', 'isotonic'), values are fitted calibrators.
+
+#     metrics_df : pd.DataFrame
+#         DataFrame comparing calibration metrics across methods with columns:
+
+#         - 'brier_score' : float
+#             Brier score (lower is better) - measures accuracy of probabilistic predictions
+#         - 'log_loss' : float
+#             Logarithmic loss (lower is better) - penalizes confident wrong predictions
+#         - 'ece' : float
+#             Expected Calibration Error - average difference between confidence and accuracy
+#         - 'mce' : float
+#             Maximum Calibration Error - worst-case calibration error across bins
+
+#         Index contains method names: 'platt', 'isotonic'.
+
+#     figures : dict
+#         Dictionary containing matplotlib figures:
+#         - 'transformation_comparison' : Figure showing original vs transformed scores
+#         - '{method}_calibration' : Figure showing calibration plots for each method
+
+#     See Also
+#     --------
+#     ScoreEvaluator.evaluate_calibration : Detailed metric definitions and computation
+#     """
+#     if methods is None:
+#         methods = ["platt", "isotonic"]
+#     results = []
+#     calibrated_scores_dict = {}
+#     figures = {}
+#     calibrators = {}
+
+#     # Convert to numpy arrays
+#     scores = np.array(scores)
+#     correct_labels = np.array(correct_labels, dtype=int)
+
+#     # Train-test split
+#     train_scores, test_scores, train_labels, test_labels = train_test_split(scores, correct_labels, test_size=test_size, random_state=random_state, stratify=correct_labels)
+
+#     # Create evaluator instance
+#     transformation_data = {}
+#     for method in methods:
+#         calibrator = ScoreCalibrator(method=method)
+#         calibrator.fit(train_scores, train_labels)
+#         calibrators[method] = calibrator
+#         eval_scores = calibrator.transform(test_scores)
+#         calibrated_scores_dict[method] = eval_scores
+#         transformation_data[method] = eval_scores
+
+#         metrics = evaluate_calibration(eval_scores, test_labels, plot=False, axes=None)
+#         metrics["method"] = method
+#         results.append(metrics)
+
+#     # Create figures
+#     # 1. Transformation comparison
+#     fig, axes = plt.subplots(1, 1, figsize=(3.5, 3.5))
+#     _plot_original_vs_transformed(test_scores, transformation_data, ax=axes)
+#     plt.close(fig)
+#     figures["transformation_comparison"] = fig
+
+#     # 2. Calibration plots for each method
+#     for method in methods:
+#         eval_scores = calibrated_scores_dict[method]
+#         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+#         fig.suptitle(f"Calibration Plots for {method} Scores")
+#         evaluate_calibration(eval_scores, test_labels, plot=True, axes=axes)
+#         plt.close(fig)
+#         figures[f"{method}_calibration"] = fig
+
+#     return calibrators, pd.DataFrame(results).set_index("method"), figures
+
+
+# def _plot_original_vs_transformed(original_scores: np.ndarray, transformed_data: Union[np.ndarray, dict], ax: plt.Axes = None, **kwargs):
+#     """
+#     Plot original vs transformed scores with a perfect calibration reference line.
+
+#     Parameters
+#     ----------
+#     original_scores : np.ndarray
+#         The original (uncalibrated) scores.
+#     transformed_data : dict
+#         multiple transformations with method names as keys.
+#     ax : matplotlib.axes.Axes, optional
+#         Axes to plot on. If None, creates new figure.
+#     kwargs : dict
+#         Optional keyword arguments for customization.
+#     """
+#     title = kwargs.get("title", "Score Transformation Comparison")
+#     alpha = kwargs.get("alpha", 0.5)
+#     s = kwargs.get("s", 10)
+
+#     if ax is None:
+#         fig, ax = plt.subplots(figsize=(8, 6))
+
+#     # Handle both single transformation and multiple transformations
+#     colors = {"platt": "blue", "isotonic": "orange"}
+#     for method, transformed_scores in transformed_data.items():
+#         color = colors.get(method, None)
+#         ax.scatter(original_scores, transformed_scores, alpha=alpha, s=s, label=f"{method.title()} Calibration", color=color)
+
+#     ax.set_xlabel("Original Scores")
+#     ax.set_ylabel("Transformed Scores")
+#     ax.set_title(title)
+#     ax.legend()
+#     ax.grid(True, alpha=0.3)
+#     ax.set_title(title)
+#     ax.legend()
+#     ax.grid(True, alpha=0.3)
