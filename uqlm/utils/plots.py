@@ -116,9 +116,9 @@ def plot_model_accuracies(scores: ArrayLike, correct_indicators: ArrayLike, thre
     plt.show()
 
 
-def ranked_bar_plot(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = None, fontsize: int = 10, fontname: str = None):
+def plot_ranked_auc(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = "Hallucination Detection: Scorer-specific AUROC", fontsize: int = 10, fontname: str = None):
     """
-    Plot the ranked bar plot for the given scorers.
+    Plot the ranked bar plot for hallucination detection AUROC of the given scorers.
 
     Parameters
     ----------
@@ -131,7 +131,7 @@ def ranked_bar_plot(uq_result: UQResult, correct_indicators: ArrayLike, scorers_
     scorers_names : List[str], default=None
         The names of the scorers to plot
 
-    title : str, default=None
+    title : str, default="Hallucination Detection: Scorer-specific AUROC"
         The title of the plot
 
     write_path : Optional[str], default=None
@@ -200,14 +200,15 @@ def ranked_bar_plot(uq_result: UQResult, correct_indicators: ArrayLike, scorers_
     ax.tick_params(axis="x", labelsize=fontsize - 3)
     ax.tick_params(axis="y", labelsize=fontsize - 3)
     ax.grid()
-    ax.set_title(title, fontsize=fontsize, y=-0.22, fontname=fontname)
+    ax.set_xlabel("AUROC Score", fontsize=fontsize - 2, fontname=fontname)
+    ax.set_title(f"{title}", fontsize=fontsize, fontname=fontname)
 
     if write_path:
         plt.savefig(f"{write_path}", dpi=300)
     plt.show()
 
 
-def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = None, fontsize: int = 10, fontname: str = None):
+def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = "LLM Accuracy by Confidence Score Threshold", fontsize: int = 10, fontname: str = None):
     """
     Plot the filtered accuracy for the given scorers.
 
@@ -223,7 +224,7 @@ def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, s
     write_path : Optional[str], default=None
         The path to save the plot
 
-    title : str, default=None
+    title : str, default="LLM Accuracy by Confidence Score Threshold"
         The title of the plot
 
     fontsize : int, default=10
@@ -263,11 +264,11 @@ def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, s
 
     ax.set_xlim(-0.05, 0.95)
     ax.tick_params(axis="both", labelsize=fontsize - 3)  # Increase tick label font size
-    ax.set_xlabel("Confidence Score Threshold", fontsize=fontsize - 2, fontname=fontname)
-    ax.set_ylabel("LLM Filtered Accuracy", fontsize=fontsize - 2, fontname=fontname)
+    ax.set_xlabel("Thresholds", fontsize=fontsize - 2, fontname=fontname)
+    ax.set_ylabel("LLM Accuracy (Filtered)", fontsize=fontsize - 2, fontname=fontname)
     ax.legend(fontsize=fontsize - 2)
     ax.grid()
-    ax.set_title(title, fontsize=fontsize, y=-0.22, fontname=fontname)
+    ax.set_title(f"{title}", fontsize=fontsize, fontname=fontname)
     if write_path:
         plt.savefig(f"{write_path}", dpi=300)
     plt.show()
