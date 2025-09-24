@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import math
 import numpy as np
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -49,13 +49,13 @@ class WhiteBoxUQ(UncertaintyQuantifier):
         super().__init__(llm=llm, max_calls_per_min=max_calls_per_min, system_prompt=system_prompt)
         self.scorers = scorers if scorers else self.white_box_names
 
-    async def generate_and_score(self, prompts: List[str | List[BaseMessage]], show_progress_bars: Optional[bool] = True) -> UQResult:
+    async def generate_and_score(self, prompts: List[Union[str | List[BaseMessage]]], show_progress_bars: Optional[bool] = True) -> UQResult:
         """
         Generate responses and compute white-box confidence scores based on extracted token probabilities.
 
         Parameters
         ----------
-        prompts : List[str | List[BaseMessage]]
+        prompts : List[Union[str | List[BaseMessage]]]
             List of prompts from which LLM responses will be generated. Prompts in list may be strings or lists of BaseMessage. If providing
             input type List[List[BaseMessage]], refer to https://python.langchain.com/docs/concepts/messages/#langchain-messages for support.
 
