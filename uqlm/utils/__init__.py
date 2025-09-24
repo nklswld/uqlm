@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from uqlm.utils.plots import plot_model_accuracies, plot_filtered_accuracy, ranked_bar_plot
+from uqlm.utils.plots import plot_model_accuracies, plot_filtered_accuracy, plot_ranked_auc
 from uqlm.utils.dataloader import load_dataset, load_example_dataset
 from uqlm.utils.postprocessors import math_postprocessor
 from uqlm.utils.response_generator import ResponseGenerator
