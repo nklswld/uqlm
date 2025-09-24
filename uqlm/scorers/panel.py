@@ -68,7 +68,6 @@ class LLMPanel(UncertaintyQuantifier):
                 judge = LLMJudge(llm=judge, max_calls_per_min=max_calls_per_min, scoring_template=template)
             elif not isinstance(judge, LLMJudge):
                 raise ValueError("judges must be a list containing instances of either LLMJudge or BaseChatModel")
-            # No need for consistency validation since judges don't have explanations parameter
             self.judges.append(judge)
 
     async def generate_and_score(self, prompts: List[str], show_progress_bars: Optional[bool] = True) -> UQResult:
