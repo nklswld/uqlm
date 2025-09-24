@@ -14,14 +14,13 @@
 
 import warnings
 
+
 class UQLMBetaWarning(Warning):
     """Custom warning class for beta features in UQLM."""
+
     pass
+
 
 def beta_warning(message: str):
     """Issues a beta warning with a custom message."""
-    warnings.warn(
-        message,
-        category=UQLMBetaWarning,
-        stacklevel=2 
-    )
+    warnings.warn(message, category=UQLMBetaWarning, stacklevel=2)
