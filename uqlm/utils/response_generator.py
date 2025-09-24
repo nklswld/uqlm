@@ -22,6 +22,7 @@ import numpy as np
 from rich.progress import Progress
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from uqlm.utils.warn import beta_warning
 
 
 class ResponseGenerator:
@@ -95,6 +96,8 @@ class ResponseGenerator:
         assert isinstance(self.llm, BaseChatModel), """
             llm must be an instance of langchain_core.language_models.chat_models.BaseChatModel
         """
+        if any(isinstance(prompt, list) and all(isinstance(item, BaseMessage) for item in prompt) for prompt in prompts):
+            beta_warning("Use of BaseMessage in prompts argument is in beta. Please use it with caution as it may change in future releases.")
         if self.llm.temperature == 0:
             assert count == 1, "temperature must be greater than 0 if count > 1"
         self._update_count(count)
