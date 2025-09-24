@@ -208,7 +208,8 @@ class LLMJudge(ResponseGenerator):
         Dict
             Dictionary containing Q/A concatenation prompts, judge responses, judge scores, and optionally explanations
         """
-        concatenated_qa = [self._default_template_ques_ans(explanations=explanations).format(prompts[i], responses[i]) for i in range(len(prompts))]
+        instruction = self.explanation_instruction if explanations else self.standard_instruction
+        concatenated_qa = [self._default_template_ques_ans(instruction).format(prompts[i], responses[i]) for i in range(len(prompts))]
         with contextlib.redirect_stdout(io.StringIO()):
             data = await self.generate_responses(prompts=concatenated_qa, count=1, progress_bar=progress_bar)
 
@@ -253,15 +254,10 @@ class LLMJudge(ResponseGenerator):
                 break
         return {col: list(df[col]) for col in df.columns}
 
-    def _default_template_ques_ans(self, explanations: bool = False):
-        """Constructs default question-answer template"""
+    def _default_template_ques_ans(self, instruction: str):
+        """Constructs default question-answer template with provided instruction"""
         qa_text = "Question: {}, Proposed Answer: {}. "
-        if explanations:
-            instruction = self.explanation_instruction
-        else:
-            instruction = self.standard_instruction
-        default_template = qa_text + instruction
-        return default_template
+        return qa_text + instruction
 
     def _extract_answers(self, responses: List[str], explanations: bool = False) -> Union[List[float], Tuple[List[float], List[str]]]:
         """
@@ -310,8 +306,11 @@ class LLMJudge(ResponseGenerator):
                 score = self._extract_score_from_text(response)
                 return score, "No explanation provided"
 
-        except Exception:
-            return np.nan, "Failed to parse response"
+        except Exception as e:
+            import warnings
+
+            warnings.warn(f"Failed to parse judge response: '{response[:50]}...'. Using NaN fallback. Error: {str(e)[:100]}")
+            return np.nan, "Parsing failed - using NaN"
 
     def _extract_score_from_text(self, response: str) -> float:
         """
