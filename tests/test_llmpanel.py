@@ -40,19 +40,6 @@ def mock_judge_single():
 
 
 @pytest.fixture
-def mock_judges_with_explanations():
-    judge1 = MagicMock(spec=LLMJudge)
-    judge2 = MagicMock(spec=LLMJudge)
-    return [judge1, judge2]
-
-
-@pytest.fixture
-def mock_judge_with_explanations():
-    judge = MagicMock(spec=LLMJudge)
-    return judge
-
-
-@pytest.fixture
 def mock_llm():
     mock_llm = MagicMock(spec=BaseChatModel)
     mock_llm.temperature = 0.7
@@ -131,14 +118,14 @@ def test_explanations_parameter_default(mock_judge_single, mock_llm):
     assert not panel.explanations
 
 
-def test_explanations_parameter_enabled(mock_judge_with_explanations, mock_llm):
+def test_explanations_parameter_enabled(mock_judge_single, mock_llm):
     """Test that explanations parameter can be set to True"""
-    panel = LLMPanel(judges=[mock_judge_with_explanations], llm=mock_llm, explanations=True)
+    panel = LLMPanel(judges=[mock_judge_single], llm=mock_llm, explanations=True)
     assert panel.explanations
 
 
 @pytest.mark.asyncio
-async def test_llmpanel_with_explanations(monkeypatch, mock_judges_with_explanations, mock_llm):
+async def test_llmpanel_with_explanations(monkeypatch, mock_judges, mock_llm):
     """Test LLMPanel with explanations enabled"""
     PROMPTS = data["prompts"]
     MOCKED_RESPONSES = data["responses"]
@@ -146,7 +133,7 @@ async def test_llmpanel_with_explanations(monkeypatch, mock_judges_with_explanat
     EXPLANATIONS = ["Explanation 1", "Explanation 2"]
     METADATA = data["metadata"]
 
-    panel = LLMPanel(judges=mock_judges_with_explanations, llm=mock_llm, explanations=True)
+    panel = LLMPanel(judges=mock_judges, llm=mock_llm, explanations=True)
 
     # Mock methods
     async def mock_generate_original_responses(*args, **kwargs):
