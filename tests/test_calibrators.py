@@ -16,7 +16,8 @@ import pytest
 import numpy as np
 from unittest.mock import patch, MagicMock
 
-from uqlm.utils.calibration import ScoreCalibrator, _evaluate_single_calibrator, _plot_reliability_diagram
+from uqlm.calibration.score_calibrator import ScoreCalibrator
+from uqlm.calibration.evaluate import _evaluate_single_calibrator, _plot_reliability_diagram
 from uqlm.utils.results import UQResult
 
 
