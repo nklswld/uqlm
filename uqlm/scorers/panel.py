@@ -65,13 +65,10 @@ class LLMPanel(UncertaintyQuantifier):
         self.judges = []
         for judge, template in zip(judges, self.scoring_templates):
             if isinstance(judge, BaseChatModel):
-                judge = LLMJudge(llm=judge, max_calls_per_min=max_calls_per_min, scoring_template=template, explanations=explanations)
+                judge = LLMJudge(llm=judge, max_calls_per_min=max_calls_per_min, scoring_template=template)
             elif not isinstance(judge, LLMJudge):
                 raise ValueError("judges must be a list containing instances of either LLMJudge or BaseChatModel")
-            else:
-                # If it's already an LLMJudge, we need to ensure it has the same explanations setting
-                if judge.explanations != explanations:
-                    raise ValueError("All judges must have the same explanations setting")
+            # No need for consistency validation since judges don't have explanations parameter
             self.judges.append(judge)
 
     async def generate_and_score(self, prompts: List[str], show_progress_bars: Optional[bool] = True) -> UQResult:
@@ -128,7 +125,7 @@ class LLMPanel(UncertaintyQuantifier):
         judge_count = 1
         scores_lists = []
         for judge in self.judges:
-            tmp = await judge.judge_responses(prompts=prompts, responses=responses, progress_bar=self.progress_bar)
+            tmp = await judge.judge_responses(prompts=prompts, responses=responses, progress_bar=self.progress_bar, explanations=self.explanations)
             scores_lists.append(tmp["scores"])
             data[f"judge_{judge_count}"] = tmp["scores"]
 
