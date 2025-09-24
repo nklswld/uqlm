@@ -15,7 +15,7 @@
 
 import io
 import contextlib
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 from langchain_core.messages import BaseMessage
 from rich.progress import Progress, TextColumn
 
@@ -75,7 +75,7 @@ class UncertaintyQuantifier:
         self.raw_responses = None
         self.raw_sampled_responses = None
 
-    async def generate_original_responses(self, prompts: List[str | List[BaseMessage]], progress_bar: Optional[Progress] = None) -> List[str]:
+    async def generate_original_responses(self, prompts: List[Union[str | List[BaseMessage]]], progress_bar: Optional[Progress] = None) -> List[str]:
         """
         This method generates original responses for uncertainty
         estimation. If specified in the child class, all responses are postprocessed
@@ -83,7 +83,7 @@ class UncertaintyQuantifier:
 
         Parameters
         ----------
-        prompts : List[str | List[BaseMessage]]
+        prompts : List[Union[str | List[BaseMessage]]]
             List of prompts from which LLM responses will be generated. Prompts in list may be strings or lists of BaseMessage. If providing
             input type List[List[BaseMessage]], refer to https://python.langchain.com/docs/concepts/messages/#langchain-messages for support.
 
@@ -103,7 +103,7 @@ class UncertaintyQuantifier:
             responses = [self.postprocessor(r) for r in responses]
         return responses
 
-    async def generate_candidate_responses(self, prompts: List[str | List[BaseMessage]], num_responses: int = 5, progress_bar: Optional[Progress] = None) -> List[List[str]]:
+    async def generate_candidate_responses(self, prompts: List[Union[str | List[BaseMessage]]], num_responses: int = 5, progress_bar: Optional[Progress] = None) -> List[List[str]]:
         """
         This method generates multiple responses for uncertainty
         estimation. If specified in the child class, all responses are postprocessed
@@ -111,7 +111,7 @@ class UncertaintyQuantifier:
 
         Parameters
         ----------
-        prompts : List[str | List[BaseMessage]]
+        prompts : List[Union[str | List[BaseMessage]]]
             List of prompts from which LLM responses will be generated. Prompts in list may be strings or lists of BaseMessage. If providing
             input type List[List[BaseMessage]], refer to https://python.langchain.com/docs/concepts/messages/#langchain-messages for support.
 
@@ -140,7 +140,7 @@ class UncertaintyQuantifier:
         self.llm.temperature = llm_temperature
         return sampled_responses
 
-    async def _generate_responses(self, prompts: List[str | List[BaseMessage]], count: int, temperature: float = None, progress_bar: Optional[Progress] = None) -> List[str]:
+    async def _generate_responses(self, prompts: List[Union[str | List[BaseMessage]]], count: int, temperature: float = None, progress_bar: Optional[Progress] = None) -> List[str]:
         """Helper function to generate responses with LLM"""
         try:
             if self.llm is None:

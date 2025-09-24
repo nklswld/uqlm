@@ -15,7 +15,7 @@
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier
 from uqlm.utils.results import UQResult
@@ -118,13 +118,13 @@ class BlackBoxUQ(UncertaintyQuantifier):
         if self.use_nli:
             self._setup_nli(nli_model_name)
 
-    async def generate_and_score(self, prompts: List[str | List[BaseMessage]], num_responses: int = 5, show_progress_bars: Optional[bool] = True) -> UQResult:
+    async def generate_and_score(self, prompts: List[Union[str | List[BaseMessage]]], num_responses: int = 5, show_progress_bars: Optional[bool] = True) -> UQResult:
         """
         Generate LLM responses, sampled LLM (candidate) responses, and compute confidence scores with specified scorers for the provided prompts.
 
         Parameters
         ----------
-        prompts : List[str | List[BaseMessage]]
+        prompts : List[Union[str | List[BaseMessage]]]
             List of prompts from which LLM responses will be generated. Prompts in list may be strings or lists of BaseMessage. If providing
             input type List[List[BaseMessage]], refer to https://python.langchain.com/docs/concepts/messages/#langchain-messages for support.
 
