@@ -138,14 +138,15 @@ async def test_ensemble(monkeypatch, mock_llm):
     for show_progress_bars in [False, True]:
         result = await uqe.tune(prompts=PROMPTS, ground_truth_answers=[PROMPTS[0]] + [" "] * len(PROMPTS[:-1]), grader_function=lambda response, answer: response == answer, show_progress_bars=show_progress_bars)
         assert result.metadata["thresh"] == tune_results["thresh"]
-        
-    @unittest.skipIf(os.getenv('CI'), "Skipping test in CI environment")
+
+    @unittest.skipIf(os.getenv("CI"), "Skipping test in CI environment")
     async def test_tune_with_default_grader():
         result = await uqe.tune(prompts=PROMPTS, ground_truth_answers=PROMPTS, show_progress_bars=False)
         assert result.metadata["thresh"] == tune_results["thresh"]
         assert result.metadata["weights"] == tune_results["weights"]
-        
+
     await test_tune_with_default_grader()
+
 
 @pytest.mark.asyncio
 async def test_ensemble2(monkeypatch, mock_llm):
