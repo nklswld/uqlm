@@ -50,13 +50,13 @@ class ResponseGenerator:
         self.progress_task = None
         self.is_judge = False
 
-    async def generate_responses(self, prompts: List[str | List[BaseMessage]], system_prompt: Optional[str] = None, count: int = 1, progress_bar: Optional[Progress] = None) -> Dict[str, Any]:
+    async def generate_responses(self, prompts: List[Union[str, List[BaseMessage]]], system_prompt: Optional[str] = None, count: int = 1, progress_bar: Optional[Progress] = None) -> Dict[str, Any]:
         """
         Generates responses from a provided set of prompts. For each prompt, `count` responses are generated.
 
         Parameters
         ----------
-        prompts : List[str | List[BaseMessage]]
+        prompts : List[Union[str, List[BaseMessage]]]
             List of prompts from which LLM responses will be generated. Prompts in list may be strings or lists of BaseMessage. If providing
             input type List[List[BaseMessage]], refer to https://python.langchain.com/docs/concepts/messages/#langchain-messages for support.
 
@@ -109,7 +109,7 @@ class ResponseGenerator:
         logprobs = generations["logprobs"]
         return {"data": {"prompt": self._enforce_strings(duplicated_prompts), "response": self._enforce_strings(responses)}, "metadata": {"system_prompt": system_prompt, "temperature": self.llm.temperature, "count": self.count, "logprobs": logprobs}}
 
-    def _create_tasks(self, prompts: List[str | List[BaseMessage]]) -> Tuple[List[Any], List[str]]:
+    def _create_tasks(self, prompts: List[Union[str, List[BaseMessage]]]) -> Tuple[List[Any], List[str]]:
         """
         Creates a list of async tasks and returns duplicated prompt list
         with each prompt duplicated `count` times
@@ -127,7 +127,7 @@ class ResponseGenerator:
         if self.use_n_param:
             self.llm.n = count
 
-    async def _generate_in_batches(self, prompts: List[str | List[BaseMessage]], progress_bar: Optional[bool] = True) -> Tuple[Dict[str, List[Any]], List[str]]:
+    async def _generate_in_batches(self, prompts: List[Union[str, List[BaseMessage]]], progress_bar: Optional[bool] = True) -> Tuple[Dict[str, List[Any]], List[str]]:
         """Executes async IO with langchain in batches to avoid rate limit error"""
         assert self.count > 0, "count must be greater than 0"
         self.progress_bar = progress_bar
@@ -153,7 +153,7 @@ class ResponseGenerator:
         time.sleep(0.1)
         return generations, duplicated_prompts
 
-    async def _process_batch(self, prompt_batch: List[str | List[BaseMessage]], duplicated_prompts: List[str], generations: Dict[str, List[Any]], check_batch_time: bool) -> None:
+    async def _process_batch(self, prompt_batch: List[Union[str, List[BaseMessage]]], duplicated_prompts: List[str], generations: Dict[str, List[Any]], check_batch_time: bool) -> None:
         """Process a single batch of prompts"""
         start = time.time()
         # generate responses for current batch
@@ -174,7 +174,7 @@ class ResponseGenerator:
         if (stop - start < 60) and check_batch_time:
             time.sleep(61 - stop + start)
 
-    async def _async_api_call(self, prompt: str | List[BaseMessage], count: int = 1) -> Dict[str, Any]:
+    async def _async_api_call(self, prompt: Union[str, List[BaseMessage]], count: int = 1) -> Dict[str, Any]:
         """Generates responses asynchronously using an RunnableSequence object"""
         if isinstance(prompt, str):
             system_message = SystemMessage("You are a helpful assistant.") if not self.system_message else self.system_message
