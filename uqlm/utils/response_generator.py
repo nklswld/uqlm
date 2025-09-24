@@ -16,7 +16,7 @@ import asyncio
 import itertools
 import time
 import warnings
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 from rich.progress import Progress
