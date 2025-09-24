@@ -23,4 +23,4 @@ from uqlm.utils.llm_config import save_llm_config, load_llm_config
 from uqlm.utils.display import ConditionalBarColumn, ConditionalTimeElapsedColumn, ConditionalTextColumn, ConditionalSpinnerColumn
 from uqlm.utils.calibration import ScoreCalibrator, evaluate_calibration
 
-__all__ = ["plot_model_accuracies", "plot_filtered_accuracy", "ranked_bar_plot", "load_example_dataset", "load_dataset", "load_example_dataset", "math_postprocessor", "ResponseGenerator", "UQResult", "Tuner", "save_llm_config", "load_llm_config", "ConditionalBarColumn", "ConditionalTimeElapsedColumn", "ConditionalTextColumn", "ConditionalSpinnerColumn", "ScoreCalibrator", "evaluate_calibration"]
+__all__ = ["plot_model_accuracies", "plot_filtered_accuracy", "plot_ranked_auc", "load_example_dataset", "load_dataset", "load_example_dataset", "math_postprocessor", "ResponseGenerator", "UQResult", "Tuner", "save_llm_config", "load_llm_config", "ConditionalBarColumn", "ConditionalTimeElapsedColumn", "ConditionalTextColumn", "ConditionalSpinnerColumn", "ScoreCalibrator", "evaluate_calibration"]
