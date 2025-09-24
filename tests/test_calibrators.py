@@ -379,6 +379,7 @@ class TestIntegration:
         # Should be monotonic (non-decreasing)
         assert np.all(np.diff(uq_result.data["calibrated_judge_1"]) >= -1e-10)  # Allow for small numerical errors
 
+
 class TestScoreEvaluator:
     """Test suite for ScoreEvaluator class."""
 

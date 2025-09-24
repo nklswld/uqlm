@@ -154,7 +154,7 @@ class ScoreCalibrator:
         self.fit(uq_result, correct_indicators)
         self.transform(uq_result)
 
-        
+
 def evaluate_calibration(uq_result: UQResult, correct_indicators: Union[List[bool], List[int], np.ndarray], plot: bool = True, axes: Optional[tuple] = None) -> dict:
     """
     Evaluate the calibration quality of the scores.
