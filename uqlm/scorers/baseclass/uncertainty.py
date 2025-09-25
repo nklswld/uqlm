@@ -15,7 +15,8 @@
 
 import io
 import contextlib
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
+from langchain_core.messages import BaseMessage
 from rich.progress import Progress, TextColumn
 
 from uqlm.utils.response_generator import ResponseGenerator
@@ -31,7 +32,7 @@ WHITE_BOX_SCORERS = ["normalized_probability", "min_probability"]
 
 
 class UncertaintyQuantifier:
-    def __init__(self, llm: Any = None, device: Any = None, system_prompt: str = "You are a helpful assistant", max_calls_per_min: Optional[int] = None, use_n_param: bool = False, postprocessor: Optional[Any] = None) -> None:
+    def __init__(self, llm: Any = None, device: Any = None, system_prompt: Optional[str] = None, max_calls_per_min: Optional[int] = None, use_n_param: bool = False, postprocessor: Optional[Any] = None) -> None:
         """
         Parent class for uncertainty quantification of LLM responses
 
@@ -45,8 +46,9 @@ class UncertaintyQuantifier:
             Specifies the device that NLI model use for prediction. Only applies to 'semantic_negentropy', 'noncontradiction'
             scorers. Pass a torch.device to leverage GPU.
 
-        system_prompt : str or None, default="You are a helpful assistant."
-            Optional argument for user to provide custom system prompt
+        system_prompt : str, default=None
+            Optional argument for user to provide custom system prompt. If prompts are list of strings and system_prompt is None,
+            defaults to "You are a helpful assistant."
 
         max_calls_per_min : int, default=None
             Specifies how many api calls to make per minute to avoid a rate limit error. By default, no
@@ -73,7 +75,7 @@ class UncertaintyQuantifier:
         self.raw_responses = None
         self.raw_sampled_responses = None
 
-    async def generate_original_responses(self, prompts: List[str], progress_bar: Optional[Progress] = None) -> List[str]:
+    async def generate_original_responses(self, prompts: List[Union[str, List[BaseMessage]]], progress_bar: Optional[Progress] = None) -> List[str]:
         """
         This method generates original responses for uncertainty
         estimation. If specified in the child class, all responses are postprocessed
@@ -81,8 +83,9 @@ class UncertaintyQuantifier:
 
         Parameters
         ----------
-        prompts : list of str
-            A list of input prompts for the model.
+        prompts : List[Union[str, List[BaseMessage]]]
+            List of prompts from which LLM responses will be generated. Prompts in list may be strings or lists of BaseMessage. If providing
+            input type List[List[BaseMessage]], refer to https://python.langchain.com/docs/concepts/messages/#langchain-messages for support.
 
         progress_bar : rich.progress.Progress, default=None
             A progress bar object to display progress.
@@ -100,7 +103,7 @@ class UncertaintyQuantifier:
             responses = [self.postprocessor(r) for r in responses]
         return responses
 
-    async def generate_candidate_responses(self, prompts: List[str], num_responses: int = 5, progress_bar: Optional[Progress] = None) -> List[List[str]]:
+    async def generate_candidate_responses(self, prompts: List[Union[str, List[BaseMessage]]], num_responses: int = 5, progress_bar: Optional[Progress] = None) -> List[List[str]]:
         """
         This method generates multiple responses for uncertainty
         estimation. If specified in the child class, all responses are postprocessed
@@ -108,8 +111,9 @@ class UncertaintyQuantifier:
 
         Parameters
         ----------
-        prompts : list of str
-            A list of input prompts for the model.
+        prompts : List[Union[str, List[BaseMessage]]]
+            List of prompts from which LLM responses will be generated. Prompts in list may be strings or lists of BaseMessage. If providing
+            input type List[List[BaseMessage]], refer to https://python.langchain.com/docs/concepts/messages/#langchain-messages for support.
 
         num_responses : int, default=5
             The number of sampled responses used to compute consistency.
@@ -136,7 +140,7 @@ class UncertaintyQuantifier:
         self.llm.temperature = llm_temperature
         return sampled_responses
 
-    async def _generate_responses(self, prompts: List[str], count: int, temperature: float = None, progress_bar: Optional[Progress] = None) -> List[str]:
+    async def _generate_responses(self, prompts: List[Union[str, List[BaseMessage]]], count: int, temperature: float = None, progress_bar: Optional[Progress] = None) -> List[str]:
         """Helper function to generate responses with LLM"""
         try:
             if self.llm is None:

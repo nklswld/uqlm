@@ -222,6 +222,7 @@ Explore the following demo notebooks to see how to use UQLM for various hallucin
 - [Tunable UQ Ensemble](https://github.com/cvs-health/uqlm/blob/develop/examples/ensemble_tuning_demo.ipynb): A notebook demonstrating hallucination detection with a tunable ensemble of UQ scorers ([Bouchard & Chauhan, 2025](https://arxiv.org/abs/2504.19254)).
 - [Off-the-Shelf UQ Ensemble](https://github.com/cvs-health/uqlm/blob/develop/examples/ensemble_off_the_shelf_demo.ipynb): A notebook demonstrating hallucination detection using BS Detector ([Chen & Mueller, 2023](https://arxiv.org/abs/2308.16175)) off-the-shelf ensemble.
 - [Semantic Entropy](https://github.com/cvs-health/uqlm/blob/develop/examples/semantic_entropy_demo.ipynb): A notebook demonstrating token-probability-based semantic entropy ([Farquhar et al., 2024](https://www.nature.com/articles/s41586-024-07421-0); [Kuhn et al., 2023](https://arxiv.org/abs/2302.09664)), which combines elements of black-box UQ and white-box UQ to compute confidence scores.
+- [Multimodal Uncertainty Quantification](https://github.com/cvs-health/uqlm/blob/develop/examples/multimodal_demo.ipynb): A notebook demonstrating UQLM's scoring approach with multimodal inputs (compatible with black-box UQ and white-box UQ).
 - [Score Calibration](https://github.com/cvs-health/uqlm/blob/develop/examples/score_calibration_demo.ipynb): A notebook illustrating transformation of confidence scores into calibrated probabilities that better reflect the true likelihood of correctness.
 
 ## Associated Research
