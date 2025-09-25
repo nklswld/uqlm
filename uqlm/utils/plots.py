@@ -14,10 +14,11 @@
 
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import numpy as np
 from numpy.typing import ArrayLike
 from typing import List, Optional
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, average_precision_score
 
 from uqlm.utils.results import UQResult
 
@@ -116,9 +117,9 @@ def plot_model_accuracies(scores: ArrayLike, correct_indicators: ArrayLike, thre
     plt.show()
 
 
-def plot_ranked_auc(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = "Hallucination Detection: Scorer-specific AUROC", fontsize: int = 10, fontname: str = None):
+def plot_ranked_auc(uq_result: UQResult, correct_indicators: ArrayLike, scorers_names: List[str] = None, write_path: Optional[str] = None, title: str = "Hallucination Detection: Scorer-specific AUROC", fontsize: int = 10, fontname: str = None, metric_type="auroc"):
     """
-    Plot the ranked bar plot for hallucination detection AUROC of the given scorers.
+    Plot the ranked bar plot for hallucination detection AUROC/AUPRC of the given scorers.
 
     Parameters
     ----------
@@ -132,7 +133,7 @@ def plot_ranked_auc(uq_result: UQResult, correct_indicators: ArrayLike, scorers_
         The names of the scorers to plot
 
     title : str, default="Hallucination Detection: Scorer-specific AUROC"
-        The title of the plot
+        The title of the plot.Adjusted based on the metric type
 
     write_path : Optional[str], default=None
         The path to save the plot
@@ -142,6 +143,12 @@ def plot_ranked_auc(uq_result: UQResult, correct_indicators: ArrayLike, scorers_
 
     fontname : str, default=None
         The font name of the plot
+
+    metric_type: str, default="auroc"
+        Type of metric(s) to compute and plot:
+       - "auroc": Plot only AUROC scores (Area Under ROC Curve)
+       - "auprc": Plot only AUPRC scores (Area Under Precision-Recall Curve)
+       - "both": Plot both AUROC and AUPRC side by side in subplots
 
     Returns
     -------
@@ -157,52 +164,88 @@ def plot_ranked_auc(uq_result: UQResult, correct_indicators: ArrayLike, scorers_
     if scorers_names is None:
         scorers_names = [col for col in uq_result.data.keys() if col not in Ignore_Columns]
 
-    # Initialize scores dictionary
-    scores = {"Black-box": {}, "White-box": {}, "Judges": {}, "Ensemble": {}}
+    # Initialize scores dictionary for each metric
+    if metric_type != "auroc":
+        incorrect_indicators = [not ci for ci in correct_indicators]
+    if metric_type == "both":
+        auroc_scores = {"Black-box": {}, "White-box": {}, "Judges": {}, "Ensemble": {}}
+        auprc_scores = {"Black-box": {}, "White-box": {}, "Judges": {}, "Ensemble": {}}
+    elif metric_type in ["auroc", "auprc"]:
+        scores = {"Black-box": {}, "White-box": {}, "Judges": {}, "Ensemble": {}}
+    else:
+        raise ValueError("metric_type must be one of 'both', 'auroc', 'auprc'")
+
+    # Compute metrics for each scorer
     for col in scorers_names:
         if col in uq_result.data.keys():
-            tmp = roc_auc_score(correct_indicators, uq_result.data[col])
+            # Calculate both metrics
+            if metric_type in ["both", "auprc"]:
+                uncertainty_scores = [1 - cs for cs in uq_result.data[col]]
+            if metric_type == "both":
+                auroc_tmp = roc_auc_score(correct_indicators, uq_result.data[col])
+                auprc_tmp = average_precision_score(
+                    incorrect_indicators,
+                    uncertainty_scores,  # compute with flipped labels
+                )
+            elif metric_type == "auprc":
+                tmp = average_precision_score(
+                    incorrect_indicators,
+                    uncertainty_scores,  # compute with flipped labels
+                )
+            else:  # auroc
+                tmp = roc_auc_score(correct_indicators, uq_result.data[col])
+
+            # Categorize scorers
             if col in Black_Box_Scorers:
-                scores["Black-box"][Method_Names[col]] = tmp
+                if metric_type == "both":
+                    auroc_scores["Black-box"][Method_Names[col]] = auroc_tmp
+                    auprc_scores["Black-box"][Method_Names[col]] = auprc_tmp
+                else:
+                    scores["Black-box"][Method_Names[col]] = tmp
             elif col in White_Box_Scorers:
-                scores["White-box"][Method_Names[col]] = tmp
+                if metric_type == "both":
+                    auroc_scores["White-box"][Method_Names[col]] = auroc_tmp
+                    auprc_scores["White-box"][Method_Names[col]] = auprc_tmp
+                else:
+                    scores["White-box"][Method_Names[col]] = tmp
             elif col[:6] == "judge_":
-                scores["Judges"][f"Judge {col[6:]}"] = tmp
+                if metric_type == "both":
+                    auroc_scores["Judges"][f"Judge {col[6:]}"] = auroc_tmp
+                    auprc_scores["Judges"][f"Judge {col[6:]}"] = auprc_tmp
+                else:
+                    scores["Judges"][f"Judge {col[6:]}"] = tmp
             elif col in Ensemble:
-                scores["Ensemble"][Method_Names[col]] = tmp
+                if metric_type == "both":
+                    auroc_scores["Ensemble"][Method_Names[col]] = auroc_tmp
+                    auprc_scores["Ensemble"][Method_Names[col]] = auprc_tmp
+                else:
+                    scores["Ensemble"][Method_Names[col]] = tmp
 
-    # Remove any empty dictionaries from scores
-    empty_keys = [k for k, v in scores.items() if not v]
-    for k in empty_keys:
-        del scores[k]
+    # Remove empty dictionaries
+    if metric_type == "both":
+        empty_keys = [k for k, v in auroc_scores.items() if not v]
+        for k in empty_keys:
+            del auroc_scores[k]
+            del auprc_scores[k]
+    else:
+        empty_keys = [k for k, v in scores.items() if not v]
+        for k in empty_keys:
+            del scores[k]
 
-    _, ax = plt.subplots()
-    cols, values = [], []
-    for key in scores:
-        for scorer in scores[key]:
-            cols.append(scorer)
-            values.append(scores[key][scorer])
-
-    sorted_values, sorted_cols = zip(*sorted(zip(values, cols)))
-
-    for i in range(len(sorted_values)):
-        if sorted_cols[i] in scores.get("Black-box", {}):
-            c = bar_colors[0]
-        elif sorted_cols[i] in scores.get("White-box", {}):
-            c = bar_colors[1]
-        elif sorted_cols[i] in scores.get("Judges", {}):
-            c = bar_colors[2]
-        else:
-            c = bar_colors[3]
-        ax.barh(sorted_cols[i], sorted_values[i], color=c)
-
-    ax.set_xlim(sorted_values[0] - 0.2, sorted_values[-1] + 0.04)
-    ax.tick_params(axis="x", labelsize=fontsize - 3)
-    ax.tick_params(axis="y", labelsize=fontsize - 3)
-    ax.grid()
-    ax.set_xlabel("AUROC Score", fontsize=fontsize - 2, fontname=fontname)
-    ax.set_title(f"{title}", fontsize=fontsize, fontname=fontname)
-
+    # Create plots
+    if metric_type == "both":
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        # Plot AUROC (left subplot)
+        _plot_single_metric(ax1, auroc_scores, bar_colors, "AUROC", fontsize, fontname)
+        # Plot AUPRC (right subplot)
+        _plot_single_metric(ax2, auprc_scores, bar_colors, "AUPRC", fontsize, fontname)
+        fig.suptitle(title.replace("AUROC", "AUROC & AUPRC"), fontsize=fontsize + 2, fontname=fontname)
+        plt.tight_layout()
+    else:
+        _, ax = plt.subplots(figsize=(10, 6))
+        metric_name = "AUPRC" if metric_type == "auprc" else "AUROC"
+        _plot_single_metric(ax, scores, bar_colors, metric_name, fontsize, fontname)
+        ax.set_title(title.replace("AUROC", metric_name), fontsize=fontsize, fontname=fontname)
     if write_path:
         plt.savefig(f"{write_path}", dpi=300)
     plt.show()
@@ -272,3 +315,49 @@ def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, s
     if write_path:
         plt.savefig(f"{write_path}", dpi=300)
     plt.show()
+
+
+def _plot_single_metric(ax, scores, bar_colors, metric_name, fontsize, fontname):
+    """Helper function to plot a single metric"""
+
+    cols, values = [], []
+    for key in scores:
+        for scorer in scores[key]:
+            cols.append(scorer)
+            values.append(scores[key][scorer])
+    # Sort values
+    sorted_values, sorted_cols = zip(*sorted(zip(values, cols)))
+    # Assign colors based on category
+    for i in range(len(sorted_values)):
+        if sorted_cols[i] in scores.get("Black-box", {}):
+            c = bar_colors[0]
+        elif sorted_cols[i] in scores.get("White-box", {}):
+            c = bar_colors[1]
+        elif sorted_cols[i] in scores.get("Judges", {}):
+            c = bar_colors[2]
+        else:
+            c = bar_colors[3]
+        ax.barh(sorted_cols[i], sorted_values[i], color=c)
+    legend_elements = []
+    legend_labels = []
+    # Check which categories are present and add to legend
+    if any(col in scores.get("Black-box", {}) for col in sorted_cols):
+        legend_elements.append(Rectangle((0, 0), 1, 1, facecolor=bar_colors[0]))
+        legend_labels.append("Black-Box UQ")
+    if any(col in scores.get("White-box", {}) for col in sorted_cols):
+        legend_elements.append(Rectangle((0, 0), 1, 1, facecolor=bar_colors[1]))
+        legend_labels.append("White-Box UQ")
+    if any(col in scores.get("Judges", {}) for col in sorted_cols):
+        legend_elements.append(Rectangle((0, 0), 1, 1, facecolor=bar_colors[2]))
+        legend_labels.append("LLM Judge")
+    if any(col in scores.get("Ensemble", {}) for col in sorted_cols):
+        legend_elements.append(Rectangle((0, 0), 1, 1, facecolor=bar_colors[3]))
+        legend_labels.append("Ensemble")
+    # Add legend if there are multiple categories
+    if len(legend_elements) > 1:
+        ax.legend(legend_elements, legend_labels, loc="lower right", fontsize=fontsize - 2)
+    ax.set_xlim(sorted_values[0] - 0.2, sorted_values[-1] + 0.04)
+    ax.tick_params(axis="x", labelsize=fontsize - 3)
+    ax.tick_params(axis="y", labelsize=fontsize - 3)
+    ax.grid()
+    ax.set_xlabel(f"{metric_name} Score", fontsize=fontsize - 2, fontname=fontname)
