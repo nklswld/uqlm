@@ -164,87 +164,59 @@ def plot_ranked_auc(uq_result: UQResult, correct_indicators: ArrayLike, scorers_
     if scorers_names is None:
         scorers_names = [col for col in uq_result.data.keys() if col not in Ignore_Columns]
 
-    # Initialize scores dictionary for each metric
-    if metric_type != "auroc":
-        incorrect_indicators = [not ci for ci in correct_indicators]
-    if metric_type == "both":
-        auroc_scores = {"Black-box": {}, "White-box": {}, "Judges": {}, "Ensemble": {}}
-        auprc_scores = {"Black-box": {}, "White-box": {}, "Judges": {}, "Ensemble": {}}
-    elif metric_type in ["auroc", "auprc"]:
-        scores = {"Black-box": {}, "White-box": {}, "Judges": {}, "Ensemble": {}}
-    else:
+    if metric_type not in ["auroc", "auprc", "both"]:
         raise ValueError("metric_type must be one of 'both', 'auroc', 'auprc'")
 
-    # Compute metrics for each scorer
+    # Determine which metrics to compute
+    metrics = ["auroc", "auprc"] if metric_type == "both" else [metric_type]
+
+    # Initialize score dictionaries for each metric
+    scores = {}
+    for metric in metrics:
+        scores[metric] = {"Black-box": {}, "White-box": {}, "Judges": {}, "Ensemble": {}}
+
     for col in scorers_names:
         if col in uq_result.data.keys():
-            # Calculate both metrics
+            # Get uncertainty scores
+            uncertainty_scores = [1 - cs for cs in uq_result.data[col]]
             if metric_type in ["both", "auprc"]:
-                uncertainty_scores = [1 - cs for cs in uq_result.data[col]]
-            if metric_type == "both":
-                auroc_tmp = roc_auc_score(correct_indicators, uq_result.data[col])
-                auprc_tmp = average_precision_score(
-                    incorrect_indicators,
-                    uncertainty_scores,  # compute with flipped labels
-                )
-            elif metric_type == "auprc":
-                tmp = average_precision_score(
-                    incorrect_indicators,
-                    uncertainty_scores,  # compute with flipped labels
-                )
-            else:  # auroc
-                tmp = roc_auc_score(correct_indicators, uq_result.data[col])
-
-            # Categorize scorers
-            if col in Black_Box_Scorers:
-                if metric_type == "both":
-                    auroc_scores["Black-box"][Method_Names[col]] = auroc_tmp
-                    auprc_scores["Black-box"][Method_Names[col]] = auprc_tmp
-                else:
-                    scores["Black-box"][Method_Names[col]] = tmp
-            elif col in White_Box_Scorers:
-                if metric_type == "both":
-                    auroc_scores["White-box"][Method_Names[col]] = auroc_tmp
-                    auprc_scores["White-box"][Method_Names[col]] = auprc_tmp
-                else:
-                    scores["White-box"][Method_Names[col]] = tmp
-            elif col[:6] == "judge_":
-                if metric_type == "both":
-                    auroc_scores["Judges"][f"Judge {col[6:]}"] = auroc_tmp
-                    auprc_scores["Judges"][f"Judge {col[6:]}"] = auprc_tmp
-                else:
-                    scores["Judges"][f"Judge {col[6:]}"] = tmp
-            elif col in Ensemble:
-                if metric_type == "both":
-                    auroc_scores["Ensemble"][Method_Names[col]] = auroc_tmp
-                    auprc_scores["Ensemble"][Method_Names[col]] = auprc_tmp
-                else:
-                    scores["Ensemble"][Method_Names[col]] = tmp
-
-    # Remove empty dictionaries
-    if metric_type == "both":
-        empty_keys = [k for k, v in auroc_scores.items() if not v]
+                # For AUPRC, we need flipped labels
+                incorrect_indicators = [not ci for ci in correct_indicators]
+            for metric in metrics:
+                # Calculate metric score
+                if metric == "auprc":
+                    score_value = average_precision_score(incorrect_indicators, uncertainty_scores)
+                else:  # auroc
+                    score_value = roc_auc_score(correct_indicators, uq_result.data[col])
+                # Determine category and store score
+                if col in Black_Box_Scorers:
+                    category = "Black-box"
+                elif col in White_Box_Scorers:
+                    category = "White-box"
+                elif col[:6] == "judge_":
+                    category = "Judges"
+                elif col in Ensemble:
+                    category = "Ensemble"
+                method_name = Method_Names.get(col, col.replace("_", " ").title())
+                scores[metric][category][method_name] = score_value
+    # Remove empty categories
+    for metric in metrics:
+        empty_keys = [k for k, v in scores[metric].items() if not v]
         for k in empty_keys:
-            del auroc_scores[k]
-            del auprc_scores[k]
-    else:
-        empty_keys = [k for k, v in scores.items() if not v]
-        for k in empty_keys:
-            del scores[k]
+            del scores[metric][k]
 
     # Create plots
-    if metric_type == "both":
+    if len(metrics) == 2:
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-        # Plot AUROC (left subplot)
-        _plot_single_metric(ax1, auroc_scores, bar_colors, "AUROC", fontsize, fontname)
-        # Plot AUPRC (right subplot)
-        _plot_single_metric(ax2, auprc_scores, bar_colors, "AUPRC", fontsize, fontname)
+        _plot_single_metric(ax1, scores["auroc"], bar_colors, "AUROC", fontsize, fontname)
+        _plot_single_metric(ax2, scores["auprc"], bar_colors, "AUPRC", fontsize, fontname)
         fig.suptitle(title.replace("AUROC", "AUROC & AUPRC"), fontsize=fontsize + 2, fontname=fontname)
         plt.tight_layout()
     else:
         _, ax = plt.subplots(figsize=(10, 6))
-        metric_name = "AUPRC" if metric_type == "auprc" else "AUROC"
-        _plot_single_metric(ax, scores, bar_colors, metric_name, fontsize, fontname)
+        metric = metrics[0]
+        metric_name = "AUPRC" if metric == "auprc" else "AUROC"
+        _plot_single_metric(ax, scores[metric], bar_colors, metric_name, fontsize, fontname)
         ax.set_title(title.replace("AUROC", metric_name), fontsize=fontsize, fontname=fontname)
     if write_path:
         plt.savefig(f"{write_path}", dpi=300)
