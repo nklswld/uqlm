@@ -133,7 +133,7 @@ def plot_ranked_auc(uq_result: UQResult, correct_indicators: ArrayLike, scorers_
         The names of the scorers to plot
 
     title : str, default="Hallucination Detection: Scorer-specific AUROC"
-        The title of the plot.Adjusted based on the metric type
+        The title of the plot. Adjusted based on the metric type
 
     write_path : Optional[str], default=None
         The path to save the plot
@@ -175,13 +175,15 @@ def plot_ranked_auc(uq_result: UQResult, correct_indicators: ArrayLike, scorers_
     for metric in metrics:
         scores[metric] = {"Black-box": {}, "White-box": {}, "Judges": {}, "Ensemble": {}}
 
+    if metric_type in ["both", "auprc"]:
+        # For AUPRC, we need flipped labels
+        incorrect_indicators = [not ci for ci in correct_indicators]
+
     for col in scorers_names:
         if col in uq_result.data.keys():
             # Get uncertainty scores
             uncertainty_scores = [1 - cs for cs in uq_result.data[col]]
-            if metric_type in ["both", "auprc"]:
-                # For AUPRC, we need flipped labels
-                incorrect_indicators = [not ci for ci in correct_indicators]
+
             for metric in metrics:
                 # Calculate metric score
                 if metric == "auprc":
