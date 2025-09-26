@@ -268,9 +268,10 @@ def plot_filtered_accuracy(uq_result: UQResult, correct_indicators: ArrayLike, s
         if key in uq_result.data.keys():
             y_true = correct_indicators
             y_score = uq_result.data[key]
-            accuracy[key] = list()
+            accuracy[key] = list()     
             for thresh in thresholds:
-                accuracy[key].append(np.mean([y_true[i] for i in range(0, len(y_true)) if y_score[i] >= thresh]))
+                filtered = [y_true[i] for i in range(len(y_true)) if y_score[i] >= thresh]
+                accuracy[key].append(np.mean(filtered) if filtered else np.nan)  
 
     for key in accuracy:
         label_ = f"Judge {key[6:]}" if key[:6] == "judge_" else Method_Names[key]
