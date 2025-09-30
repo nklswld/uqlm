@@ -218,13 +218,11 @@ class LLMJudge(ResponseGenerator):
         """
         if self.scoring_template == "continuous":
             # Extract all digits and decimal points
-            score = "".join(c for c in response if c.isdigit() or c == ".")
+            score = "".join(c for c in response if c.isdigit())
             if len(score) > 0:
                 score_val = float(score)
                 if 0.0 <= score_val <= 100.0:
                     return score_val / 100.0  # normalize
-                elif 0.0 <= score_val <= 1.0:
-                    return score_val  # already normalized
             return np.nan
 
         elif self.scoring_template == "likert":
