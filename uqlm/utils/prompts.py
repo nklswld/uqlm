@@ -89,28 +89,34 @@ PROMPT_TEMPLATES = {
                     Analyze the answer and give your confidence in this answer between {SCORING_CONFIG["continuous"]["range"]}, 
                     with 100 being certain the answer is correct, and 0 being certain the answer is incorrect.
                 """,
-        "format": f"Score: {SCORING_CONFIG['continuous']['score_format']}",
+        "score_format": f"Score: {SCORING_CONFIG['continuous']['score_format']}",
         "examples_with": f"""{BENJAMIN_FRANKLIN_CONTINUOUS_EXPLANATION_EXAMPLE}\n{ARITHMETIC_EXPLANATIONS_EXAMPLE}""",
         "examples_without": f"""{BENJAMIN_FRANKLIN_EXAMPLE}\n{ARITHMETIC_EXAMPLE}""",
-        "simple_instruction": f"""{COMMON_INSTRUCTIONS["confidence_rating"]}. {COMMON_INSTRUCTIONS["only_numerical"]}""",
+        "instruction_without_explanations": f"""{COMMON_INSTRUCTIONS["confidence_rating"]}. {COMMON_INSTRUCTIONS["only_numerical"]}""",
+        "instruction_with_explanations": f"""{COMMON_INSTRUCTIONS["confidence_rating"]}.""",
     },
     "likert": {
         "base": f"""You are a fair assessment expert evaluating the CORRECTNESS of an answer to a question.
                     Your task is to score the answer on a scale from {SCORING_CONFIG["likert"]["range"]}:
                     {SCORING_CONFIG["likert"]["scale_definitions"]}
                 """,
-        "format": f"Score: {SCORING_CONFIG['likert']['score_format']}",
+        "score_format": f"Score: {SCORING_CONFIG['likert']['score_format']}",
         "examples_with": f"{BENJAMIN_FRANKLIN_LIKERT_EXPLANATION_EXAMPLE}",
         "examples_without": "",
-        "simple_instruction": f"Give only the numerical score ({SCORING_CONFIG['likert']['score_format']}) with no explanation.",
+        "instruction_without_explanations": f"Give only the numerical score ({SCORING_CONFIG['likert']['score_format']}).",
+        "instruction_with_explanations": "Provide both score and explanation in the specified format.",
     },
     "categorical": {
         "base": """Your task is to look at the question and answer provided and determine if the answer is correct.""",
-        "format": f"Score: {SCORING_CONFIG['categorical']['score_format']}",
+        "score_format": f"Score: {SCORING_CONFIG['categorical']['score_format']}",
         "examples_with": f"{BENJAMIN_FRANKLIN_CATEGORICAL_EXPLANATION_EXAMPLE}",
         "examples_without": "",
-        "simple_instruction": f"""You are to respond with ONLY one of: {{choices}}. 
+        "instruction_without_explanations": f"""You are to respond with ONLY one of: {{choices}}. 
                                 {COMMON_INSTRUCTIONS["only_choices"]}. 
+                                {COMMON_INSTRUCTIONS["do_not_answer"]}. 
+                                {COMMON_INSTRUCTIONS["determine_correctness"]}.
+                                """,
+        "instruction_with_explanations": f"""You are to respond with one of: {{choices}}. 
                                 {COMMON_INSTRUCTIONS["do_not_answer"]}. 
                                 {COMMON_INSTRUCTIONS["determine_correctness"]}.
                                 """,
@@ -130,17 +136,25 @@ def create_instruction(template_type: str, choices: str = None, with_explanation
     # Handle dynamic choices for categorical templates
     if template_type == "categorical" and choices:
         format_spec = f"Score: {SCORING_CONFIG['categorical']['score_format'].format(choices=choices)}"
-        simple_instruction = f"""You are to respond with ONLY one of: {choices}. 
+        if with_explanations:
+            instruction = f"""You are to respond with one of: {choices}. 
+                                {COMMON_INSTRUCTIONS["do_not_answer"]}. 
+                                {COMMON_INSTRUCTIONS["determine_correctness"].format(choices=choices)}.
+                              """
+        else:
+            instruction = f"""You are to respond with ONLY one of: {choices}. 
                                 {COMMON_INSTRUCTIONS["only_choices"].format(choices=choices)}. 
                                 {COMMON_INSTRUCTIONS["do_not_answer"]}. 
                                 {COMMON_INSTRUCTIONS["determine_correctness"].format(choices=choices)}.
                               """
     else:
-        format_spec = template["format"]
-        simple_instruction = template["simple_instruction"]
+        format_spec = template["score_format"]
+        instruction_key = "instruction_with_explanations" if with_explanations else "instruction_without_explanations"
+        instruction = template[instruction_key]
 
     if with_explanations:
         return f"""{template["base"]}
+                {instruction}
 
                 You are to respond with the following format:
 
@@ -150,7 +164,7 @@ def create_instruction(template_type: str, choices: str = None, with_explanation
                 {template["examples_with"]}"""
     else:
         return f"""{template["base"]}
-                {simple_instruction}
+                {instruction}
 
                 {template["examples_without"]}"""
 
