@@ -22,113 +22,12 @@ import rich
 from typing import Any, Dict, List, Optional, Union, Tuple
 
 from uqlm.utils.response_generator import ResponseGenerator
+from uqlm.utils.prompts import TEMPLATE_TO_INSTRUCTION, TEMPLATE_TO_INSTRUCTION_WITH_EXPLANATIONS
 
 
 KEYWORDS_TO_SCORES_DICT = {round(0.0, 1): ["incorrect", "not correct", "not right", "wrong"], 0.5: ["not sure", "not certain", "unsure", "uncertain"], 1.0: ["correct", "right"]}
 
 LIKERT_TO_SCORES_DICT = {0.0: ["1", "completely incorrect", "not correct"], 0.25: ["2", "mostly incorrect", "somewhat correct"], 0.5: ["3", "partially correct", "moderately correct"], 0.75: ["4", "mostly correct", "very correct"], 1.0: ["5", "completely correct", "highly correct"]}
-
-CHOICES_2_CLASS = '"Correct", "Incorrect"'
-CHOICES_3_CLASS = CHOICES_2_CLASS + ', or "I am not sure"'
-
-CONTINUOUS_SCORE_INSTRUCTION = """
-How likely is the above answer to be correct? Analyze the answer and give your confidence in this answer between 0 (lowest) and 100 (highest), with 100 being certain the answer is correct, and 0 being certain the answer is incorrect. THE CONFIDENCE RATING YOU PROVIDE MUST BE BETWEEN 0 and 100. ONLY RETURN YOUR NUMERICAL SCORE WITH NO SURROUNDING TEXT OR EXPLANATION.
-
-# Example 1
-## Data to analyze
-Question: Who was the first president of the United States?, Proposed Answer: Benjamin Franklin.
-
-## Your response
-4 (highly certain the proposed answer is incorrect)
-
-# Example 2
-## Data to analyze
-Question: What is 2+2?, Proposed Answer: 4
-
-## Your response
-99 (highly certain the proposed answer is correct)
-"""
-LIKERT_SCORE_INSTRUCTION = """
-You are a fair assessment expert evaluating the CORRECTNESS of an answer to a question.
-Your task is to score the answer on a scale from 1 to 5, with 5 being the highest:
-1 - Completely incorrect: The answer is entirely wrong or irrelevant.
-2 - Mostly incorrect: The answer contains significant errors or misconceptions.
-3 - Partially correct: The answer has some correct elements but also contains errors.
-4 - Mostly correct: The answer is largely accurate with only minor errors or omissions.
-5 - Completely correct: The answer is fully accurate and comprehensive.
-Give only the numerical score (1-5) with no explanation.
-"""
-
-
-def cat_instruction(choices):
-    return f"""Your task is to look at the question and answer provided and determine if the answer is correct. You are to respond with ONLY one of: {choices}. YOUR ANSWER MUST ONLY CONTAIN ONE OF {choices}. DO NOT ANSWER THE QUESTION AGAIN. ONLY DETERMINE IF THE ANSWER TO THE QUESTION IS {choices}."""
-
-
-TEMPLATE_TO_INSTRUCTION = {"continuous": CONTINUOUS_SCORE_INSTRUCTION, "true_false_uncertain": cat_instruction(CHOICES_3_CLASS), "true_false": cat_instruction(CHOICES_2_CLASS), "likert": LIKERT_SCORE_INSTRUCTION}
-
-
-# Explanation-enabled templates
-def cat_instruction_with_explanations(choices):
-    return f"""Your task is to look at the question and answer provided and determine if the answer is correct. 
-You are to respond with the following format:
-
-Score: {choices}
-Explanation: [Brief explanation of your reasoning]
-
-Example:
-Score: Incorrect
-Explanation: The answer mentions Benjamin Franklin, but George Washington was the first president.
-
-YOUR ANSWER MUST FOLLOW THIS EXACT FORMAT. DO NOT ANSWER THE QUESTION AGAIN. ONLY DETERMINE IF THE ANSWER TO THE QUESTION IS CORRECT."""
-
-
-CONTINUOUS_SCORE_INSTRUCTION_WITH_EXPLANATIONS = """
-How likely is the above answer to be correct? Analyze the answer and give your confidence in this answer between 0 (lowest) and 100 (highest), with 100 being certain the answer is correct, and 0 being certain the answer is incorrect. 
-
-You are to respond with the following format:
-
-Score: [0-100]
-Explanation: [Brief explanation of your reasoning]
-
-# Example 1
-## Data to analyze
-Question: Who was the first president of the United States?, Proposed Answer: Benjamin Franklin.
-
-## Your response
-Score: 4
-Explanation: Benjamin Franklin was never president. George Washington was the first president of the United States.
-
-# Example 2
-## Data to analyze
-Question: What is 2+2?, Proposed Answer: 4
-
-## Your response
-Score: 99
-Explanation: This is a basic arithmetic question and 2+2=4 is correct.
-"""
-
-
-LIKERT_SCORE_INSTRUCTION_WITH_EXPLANATIONS = """
-You are a fair assessment expert evaluating the CORRECTNESS of an answer to a question.
-Your task is to score the answer on a scale from 1 to 5, with 5 being the highest:
-1 - Completely incorrect: The answer is entirely wrong or irrelevant.
-2 - Mostly incorrect: The answer contains significant errors or misconceptions.
-3 - Partially correct: The answer has some correct elements but also contains errors.
-4 - Mostly correct: The answer is largely accurate with only minor errors or omissions.
-5 - Completely correct: The answer is fully accurate and comprehensive.
-
-You are to respond with the following format:
-
-Score: [1-5]
-Explanation: [Brief explanation of your reasoning]
-
-Example:
-Score: 1
-Explanation: The answer is completely wrong as it mentions Benjamin Franklin instead of George Washington.
-"""
-
-
-TEMPLATE_TO_INSTRUCTION_WITH_EXPLANATIONS = {"continuous": CONTINUOUS_SCORE_INSTRUCTION_WITH_EXPLANATIONS, "true_false_uncertain": cat_instruction_with_explanations(CHOICES_3_CLASS), "true_false": cat_instruction_with_explanations(CHOICES_2_CLASS), "likert": LIKERT_SCORE_INSTRUCTION_WITH_EXPLANATIONS}
 
 
 class LLMJudge(ResponseGenerator):
