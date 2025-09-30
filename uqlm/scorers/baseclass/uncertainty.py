@@ -218,44 +218,94 @@ class UncertaintyQuantifier:
 
     def _construct_progress_bar(self, show_progress_bars: bool, _existing_progress_bar: Any = None) -> None:
         """Constructs and starts progress bar"""
+        # Clean up any existing progress bar before creating/using a new one
+        # Note: We don't try to reuse progress bars because after interruption in notebooks,
+        # they can be in a broken state where is_started=True but they're not actually displaying
+        if self.progress_bar is not None:
+            try:
+                self.progress_bar.stop()
+            except (AttributeError, RuntimeError, OSError):
+                pass
+            try:
+                if hasattr(self.progress_bar, 'live') and self.progress_bar.live is not None:
+                    self.progress_bar.live.stop()
+            except (AttributeError, RuntimeError, OSError):
+                pass
+            # Always reset after cleanup attempt
+            self.progress_bar = None
+        
+        # Handle externally provided progress bar
         if _existing_progress_bar:
             self.progress_bar = _existing_progress_bar
-            self.progress_bar.start()
+            try:
+                self.progress_bar.start()
+            except (AttributeError, RuntimeError, OSError):
+                # If starting fails, fall through to create a new one
+                self.progress_bar = None
 
-        elif show_progress_bars and not self.progress_bar:
-            completion_text = "[progress.percentage]{task.completed}/{task.total}"
-            self.progress_bar = Progress(ConditionalSpinnerColumn(), TextColumn("[progress.description]{task.description}"), ConditionalBarColumn(), ConditionalTextColumn(completion_text), ConditionalTimeElapsedColumn())
-            self.progress_bar.start()
+        # Create a new progress bar if needed
+        if show_progress_bars and not self.progress_bar:
+            try:
+                completion_text = "[progress.percentage]{task.completed}/{task.total}"
+                self.progress_bar = Progress(ConditionalSpinnerColumn(), TextColumn("[progress.description]{task.description}"), ConditionalBarColumn(), ConditionalTextColumn(completion_text), ConditionalTimeElapsedColumn())
+                self.progress_bar.start()
+            except Exception as e:
+                # If progress bar creation fails, continue without it
+                print(f"Could not create progress bar: {e}")
+                self.progress_bar = None
 
     def _display_generation_header(self, show_progress_bars: bool, white_box: bool = False) -> None:
         """Displays generation header"""
-        if show_progress_bars:
-            self.progress_bar.start()
-            display_text = "🤖 Generation" if not white_box else "🤖📈 Generation & Scoring"
-            self.progress_bar.add_task(display_text)
+        if show_progress_bars and self.progress_bar:
+            try:
+                display_text = "🤖 Generation" if not white_box else "🤖📈 Generation & Scoring"
+                self.progress_bar.add_task(display_text)
+            except (AttributeError, RuntimeError, OSError):
+                # If progress bar fails, just continue without it
+                pass
 
     def _display_scoring_header(self, show_progress_bars: bool) -> None:
         """Displays scoring header"""
-        if show_progress_bars:
-            self.progress_bar.start()
-            self.progress_bar.add_task("")
-            self.progress_bar.add_task("📈 Scoring")
+        if show_progress_bars and self.progress_bar:
+            try:
+                self.progress_bar.add_task("")
+                self.progress_bar.add_task("📈 Scoring")
+            except (AttributeError, RuntimeError, OSError):
+                # If progress bar fails, just continue without it
+                pass
 
     def _display_optimization_header(self, show_progress_bars: bool) -> None:
         """Displays optimization header"""
-        if show_progress_bars:
-            self.progress_bar.start()
-            self.progress_bar.add_task("")
-            self.progress_bar.add_task("⚙️ Optimization")
+        if show_progress_bars and self.progress_bar:
+            try:
+                self.progress_bar.add_task("")
+                self.progress_bar.add_task("⚙️ Optimization")
+            except (AttributeError, RuntimeError, OSError):
+                # If progress bar fails, just continue without it
+                pass
 
     def _stop_progress_bar(self, _existing_progress_bar: Any = None) -> None:
         """Stop progress bar"""
-        if self.progress_bar:
-            self.progress_bar.stop()
+        if self.progress_bar is not None:
+            try:
+                self.progress_bar.stop()
+            except (AttributeError, RuntimeError, OSError):
+                # If progress bar fails, just continue without it
+                pass
+            # Also ensure the live display is cleaned up
+            try:
+                if hasattr(self.progress_bar, 'live') and self.progress_bar.live is not None:
+                    self.progress_bar.live.stop()
+            except (AttributeError, RuntimeError, OSError):
+                pass
         if not _existing_progress_bar:
             self.progress_bar = None
 
     def _start_progress_bar(self) -> None:
         """Start progress bar"""
-        if self.progress_bar:
-            self.progress_bar.start()
+        if self.progress_bar is not None:
+            try:
+                self.progress_bar.start()
+            except (AttributeError, RuntimeError, OSError):
+                # If progress bar fails, just continue without it
+                pass
