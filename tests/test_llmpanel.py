@@ -71,7 +71,7 @@ async def test_llmpanel(monkeypatch, quantifier):
         monkeypatch.setattr(judge, "judge_responses", mock_judge_responses)
 
     # Call generate_and_score method to compute scores
-    for show_progress_bars in [True, False]:
+    for show_progress_bars in [False, True]:
         result = await quantifier.generate_and_score(prompts=PROMPTS, show_progress_bars=show_progress_bars)
 
         expected_data = {"prompts": PROMPTS, "responses": MOCKED_RESPONSES, "judge_1": SCORES["judge_1"], "judge_2": SCORES["judge_2"], "avg": SCORES["avg"], "max": SCORES["max"], "min": SCORES["min"], "median": SCORES["median"]}
