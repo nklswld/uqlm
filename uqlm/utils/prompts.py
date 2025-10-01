@@ -71,17 +71,37 @@ BENJAMIN_FRANKLIN_EXAMPLE = create_example(1, "Who was the first president of th
 ARITHMETIC_EXAMPLE = create_example(2, "What is 2+2?", "4", "99 (highly certain the proposed answer is correct)")
 
 # Explanation examples using standardized format
-BENJAMIN_FRANKLIN_CATEGORICAL_EXPLANATION_EXAMPLE = create_example(1, "Who was the first president of the United States?", "Benjamin Franklin", """Score: Incorrect
-                Explanation: The answer mentions Benjamin Franklin, but George Washington was the first president.""")
+BENJAMIN_FRANKLIN_CATEGORICAL_EXPLANATION_EXAMPLE = create_example(
+    1,
+    "Who was the first president of the United States?",
+    "Benjamin Franklin",
+    """Score: Incorrect
+                Explanation: The answer mentions Benjamin Franklin, but George Washington was the first president.""",
+)
 
-BENJAMIN_FRANKLIN_LIKERT_EXPLANATION_EXAMPLE = create_example(1, "Who was the first president of the United States?", "Benjamin Franklin", """Score: 1
-                Explanation: The answer mentions Benjamin Franklin, but George Washington was the first president.""")
+BENJAMIN_FRANKLIN_LIKERT_EXPLANATION_EXAMPLE = create_example(
+    1,
+    "Who was the first president of the United States?",
+    "Benjamin Franklin",
+    """Score: 1
+                Explanation: The answer mentions Benjamin Franklin, but George Washington was the first president.""",
+)
 
-BENJAMIN_FRANKLIN_CONTINUOUS_EXPLANATION_EXAMPLE = create_example(1, "Who was the first president of the United States?", "Benjamin Franklin", """"Score: 4
-                Explanation: Benjamin Franklin was never president. George Washington was the first president of the United States.""")
+BENJAMIN_FRANKLIN_CONTINUOUS_EXPLANATION_EXAMPLE = create_example(
+    1,
+    "Who was the first president of the United States?",
+    "Benjamin Franklin",
+    """"Score: 4
+                Explanation: Benjamin Franklin was never president. George Washington was the first president of the United States.""",
+)
 
-ARITHMETIC_EXPLANATIONS_EXAMPLE = create_example(2, "What is 2+2?", "4", """Score: 99
-                Explanation: This is a basic arithmetic question and 2+2=4 is correct.""")
+ARITHMETIC_EXPLANATIONS_EXAMPLE = create_example(
+    2,
+    "What is 2+2?",
+    "4",
+    """Score: 99
+                Explanation: This is a basic arithmetic question and 2+2=4 is correct.""",
+)
 
 # =============================================================================
 # PROMPT TEMPLATE DATABENJAMIN_FRANKLIN_LIKERT_EXPLANATION_EXAMPLE
