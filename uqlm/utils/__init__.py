@@ -22,5 +22,7 @@ from uqlm.utils.tuner import Tuner
 from uqlm.utils.llm_config import save_llm_config, load_llm_config
 from uqlm.utils.display import ConditionalBarColumn, ConditionalTimeElapsedColumn, ConditionalTextColumn, ConditionalSpinnerColumn
 from uqlm.utils.warn import beta_warning
+from uqlm.utils.nli import NLI
+from uqlm.utils.prompts import TEMPLATE_TO_INSTRUCTION, TEMPLATE_TO_INSTRUCTION_WITH_EXPLANATIONS, SCORING_CONFIG, COMMON_INSTRUCTIONS, PROMPT_TEMPLATES, create_instruction, get_claim_breakdown_prompt, get_entailment_prompt
 
-__all__ = ["plot_model_accuracies", "plot_filtered_accuracy", "plot_ranked_auc", "load_example_dataset", "load_dataset", "load_example_dataset", "math_postprocessor", "ResponseGenerator", "UQResult", "Tuner", "save_llm_config", "load_llm_config", "ConditionalBarColumn", "ConditionalTimeElapsedColumn", "ConditionalTextColumn", "ConditionalSpinnerColumn", "beta_warning"]
+__all__ = ["plot_model_accuracies", "plot_filtered_accuracy", "plot_ranked_auc", "load_example_dataset", "load_dataset", "load_example_dataset", "math_postprocessor", "ResponseGenerator", "UQResult", "Tuner", "save_llm_config", "load_llm_config", "ConditionalBarColumn", "ConditionalTimeElapsedColumn", "ConditionalTextColumn", "ConditionalSpinnerColumn", "beta_warning", "NLI", "TEMPLATE_TO_INSTRUCTION", "TEMPLATE_TO_INSTRUCTION_WITH_EXPLANATIONS", "SCORING_CONFIG", "COMMON_INSTRUCTIONS", "PROMPT_TEMPLATES", "create_instruction", "get_claim_breakdown_prompt", "get_entailment_prompt"]
