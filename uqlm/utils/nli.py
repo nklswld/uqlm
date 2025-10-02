@@ -205,6 +205,8 @@ class NLI:
         If logprobs are available, uses the actual token probability.
         Otherwise, falls back to binary classification based on response text.
         
+        Supports both OpenAI and Vertex AI (Gemini) logprobs formats.
+        
         Parameters
         ----------
         response : AIMessage or similar
@@ -219,6 +221,27 @@ class NLI:
         """
         # Try to extract from logprobs if available
         if hasattr(response, 'response_metadata') and response.response_metadata:
+            
+            # Vertex AI (Gemini) style logprobs
+            if 'logprobs_result' in response.response_metadata:
+                logprobs_result = response.response_metadata['logprobs_result']
+                if logprobs_result and len(logprobs_result) > 0:
+                    first_token_data = logprobs_result[0]
+                    token = first_token_data.get('token', '').strip().lower()
+                    logprob = first_token_data.get('logprob', None)
+                    
+                    if logprob is not None:
+                        prob = np.exp(logprob)
+                        
+                        # For Vertex AI, we get the logprob of the actual generated token
+                        # So we need to interpret based on what token was generated
+                        if token in ['yes', 'yes.', 'yes,']:
+                            # Token is "yes", so probability of "yes" is high
+                            return prob
+                        elif token in ['no', 'no.', 'no,']:
+                            # Token is "no", so probability of "yes" is low
+                            return 1.0 - prob
+            
             # OpenAI-style logprobs
             if 'logprobs' in response.response_metadata:
                 logprobs_data = response.response_metadata['logprobs']

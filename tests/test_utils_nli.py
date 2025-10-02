@@ -205,6 +205,53 @@ class TestNLIPredictLangChain:
         assert not np.any((result == 0.0) | (result == 1.0))
         assert mock_llm.invoke.call_count == 3
 
+    def test_predict_probabilities_with_vertex_ai_logprobs(self):
+        """Test that Vertex AI (Gemini) logprobs format is supported."""
+        mock_llm = Mock()
+        
+        # Mock responses with Vertex AI-style logprobs
+        mock_response_1 = Mock()
+        mock_response_1.content = "No"
+        mock_response_1.response_metadata = {
+            'logprobs_result': [{
+                'token': 'No',
+                'logprob': -0.01,  # Very confident "No"
+                'top_logprobs': []
+            }]
+        }
+        
+        mock_response_2 = Mock()
+        mock_response_2.content = "Yes"
+        mock_response_2.response_metadata = {
+            'logprobs_result': [{
+                'token': 'Yes',
+                'logprob': -0.5,  # Moderately confident "Yes"
+                'top_logprobs': []
+            }]
+        }
+        
+        mock_response_3 = Mock()
+        mock_response_3.content = "Yes"
+        mock_response_3.response_metadata = {
+            'logprobs_result': [{
+                'token': 'Yes',
+                'logprob': -0.01,  # Very confident "Yes"
+                'top_logprobs': []
+            }]
+        }
+        
+        mock_llm.invoke.side_effect = [mock_response_1, mock_response_2, mock_response_3]
+        
+        nli = NLI(nli_llm=mock_llm)
+        result = nli.predict(hypothesis="The sky is blue.", premise="The sky is blue.", return_probabilities=True)
+        
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (1, 3)
+        assert result.sum() == pytest.approx(1.0)
+        # Verify logprobs were used (values should not be binary)
+        assert not np.any((result == 0.0) | (result == 1.0))
+        assert mock_llm.invoke.call_count == 3
+
     def test_predict_class_with_langchain(self):
         """Test that LangChain model returns class label."""
         mock_llm = Mock()
@@ -303,8 +350,11 @@ class TestNLIComparison:
         # Mock responses for probability queries
         responses = [Mock() for _ in range(3)]
         responses[0].content = "Yes"  # contradiction
+        responses[0].response_metadata = {}
         responses[1].content = "No"  # neutral
+        responses[1].response_metadata = {}
         responses[2].content = "No"  # entailment
+        responses[2].response_metadata = {}
         mock_llm.invoke.side_effect = responses
 
         hf_nli = NLI()
