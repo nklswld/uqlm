@@ -17,10 +17,10 @@ class NLI:
         nli_model_name : str, default="microsoft/deberta-large-mnli"
             Specifies which HuggingFace NLI model to use. Must be acceptable input to
             AutoTokenizer.from_pretrained() and AutoModelForSequenceClassification.from_pretrained().
-            Cannot be used together with nli_llm.
+            Ignored if nli_llm is provided.
 
         nli_llm : BaseChatModel, default=None
-            A LangChain chat model for LLM-based NLI inference. Cannot be used together with nli_model_name.
+            A LangChain chat model for LLM-based NLI inference. If provided, takes precedence over nli_model_name.
 
         max_length : int, default=2000
             Specifies the maximum allowed string length. Responses longer than this value will be truncated to
@@ -30,19 +30,15 @@ class NLI:
             Specifies the device that classifiers use for prediction. Set to "cuda" for classifiers to be able to
             leverage the GPU. Only applies to HuggingFace models.
         """
-        # Validate that only one model type is provided
-        if nli_model_name is not None and nli_llm is not None:
-            raise ValueError("Cannot specify both nli_model_name and nli_llm. Please provide only one.")
-
-        if nli_model_name is None and nli_llm is None:
-            raise ValueError("Must specify either nli_model_name or nli_llm.")
-
+        # Prioritize nli_llm if provided, otherwise use nli_model_name
         self.is_hf_model = nli_llm is None
         self.max_length = max_length
         self.label_mapping = ["contradiction", "neutral", "entailment"]
 
         if self.is_hf_model:
             # Initialize HuggingFace model
+            if nli_model_name is None:
+                raise ValueError("Must specify either nli_model_name or nli_llm.")
             self.tokenizer = AutoTokenizer.from_pretrained(nli_model_name)
             model = AutoModelForSequenceClassification.from_pretrained(nli_model_name)
             self.device = device
@@ -160,14 +156,8 @@ class NLI:
                     response = self.model.invoke(messages)
                     response_text = response.content.strip().lower()
 
-                    # Parse Yes/No response to probability
-                    if "yes" in response_text[:10]:  # Check first 10 chars for yes
-                        prob = 1.0
-                    elif "no" in response_text[:10]:
-                        prob = 0.0
-                    else:
-                        # If unclear, assign neutral probability
-                        prob = 0.5
+                    # Try to extract probability from logprobs if available
+                    prob = self._extract_yes_probability_from_response(response, response_text)
 
                     probabilities.append(prob)
                 except Exception as e:
@@ -207,3 +197,63 @@ class NLI:
             except Exception as e:
                 warnings.warn(f"Error during LangChain NLI inference: {e}. Defaulting to 'neutral'.")
                 return "neutral"
+    
+    def _extract_yes_probability_from_response(self, response: Any, response_text: str) -> float:
+        """
+        Extract the probability of "Yes" from a LangChain response.
+        
+        If logprobs are available, uses the actual token probability.
+        Otherwise, falls back to binary classification based on response text.
+        
+        Parameters
+        ----------
+        response : AIMessage or similar
+            The response object from the LangChain model
+        response_text : str
+            The lowercased content of the response
+        
+        Returns
+        -------
+        float
+            Probability estimate for "Yes" answer (between 0 and 1)
+        """
+        # Try to extract from logprobs if available
+        if hasattr(response, 'response_metadata') and response.response_metadata:
+            # OpenAI-style logprobs
+            if 'logprobs' in response.response_metadata:
+                logprobs_data = response.response_metadata['logprobs']
+                if logprobs_data and 'content' in logprobs_data:
+                    content_logprobs = logprobs_data['content']
+                    if content_logprobs and len(content_logprobs) > 0:
+                        # Get the first token's top logprobs
+                        first_token = content_logprobs[0]
+                        if 'top_logprobs' in first_token:
+                            top_logprobs = first_token['top_logprobs']
+                            # Look for "Yes", "yes", "YES", "No", "no", "NO" tokens
+                            yes_prob = 0.0
+                            no_prob = 0.0
+                            
+                            for logprob_item in top_logprobs:
+                                token = logprob_item.get('token', '').strip().lower()
+                                logprob = logprob_item.get('logprob', None)
+                                
+                                if logprob is not None:
+                                    prob = np.exp(logprob)
+                                    if token in ['yes', 'yes.', 'yes,']:
+                                        yes_prob = max(yes_prob, prob)
+                                    elif token in ['no', 'no.', 'no,']:
+                                        no_prob = max(no_prob, prob)
+                            
+                            # If we found yes/no probabilities, normalize them
+                            total = yes_prob + no_prob
+                            if total > 0:
+                                return yes_prob / total
+        
+        # Fallback: binary classification based on text
+        if "yes" in response_text[:10]:  # Check first 10 chars for yes
+            return 1.0
+        elif "no" in response_text[:10]:
+            return 0.0
+        else:
+            # If unclear, assign neutral probability
+            return 0.5

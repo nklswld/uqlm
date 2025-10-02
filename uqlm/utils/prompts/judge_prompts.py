@@ -57,12 +57,12 @@ COMMON_INSTRUCTIONS = {
 def create_example(example_num: int, question: str, proposed_answer: str, response: str) -> str:
     """Create a standardized example format."""
     return f"""# Example {example_num}
-            ## Data to analyze
-            Question: {question}
-            Proposed Answer: {proposed_answer}
+                ## Data to analyze
+                Question: {question}
+                Proposed Answer: {proposed_answer}
 
-            ## Your response
-            {response}"""
+                ## Your response
+                {response}"""
 
 
 # Common examples using standardized format
@@ -71,27 +71,53 @@ BENJAMIN_FRANKLIN_EXAMPLE = create_example(1, "Who was the first president of th
 ARITHMETIC_EXAMPLE = create_example(2, "What is 2+2?", "4", "99 (highly certain the proposed answer is correct)")
 
 # Explanation examples using standardized format
-BENJAMIN_FRANKLIN_CATEGORICAL_EXPLANATION_EXAMPLE = create_example(1, "Who was the first president of the United States?", "Benjamin Franklin", "Score: Incorrect\nExplanation: The answer mentions Benjamin Franklin, but George Washington was the first president.")
+BENJAMIN_FRANKLIN_CATEGORICAL_EXPLANATION_EXAMPLE = create_example(
+    1,
+    "Who was the first president of the United States?",
+    "Benjamin Franklin",
+    """Score: Incorrect
+                Explanation: The answer mentions Benjamin Franklin, but George Washington was the first president.""",
+)
 
-BENJAMIN_FRANKLIN_LIKERT_EXPLANATION_EXAMPLE = create_example(1, "Who was the first president of the United States?", "Benjamin Franklin", "Score: 1\nExplanation: The answer mentions Benjamin Franklin, but George Washington was the first president.")
+BENJAMIN_FRANKLIN_LIKERT_EXPLANATION_EXAMPLE = create_example(
+    1,
+    "Who was the first president of the United States?",
+    "Benjamin Franklin",
+    """Score: 1
+                Explanation: The answer mentions Benjamin Franklin, but George Washington was the first president.""",
+)
 
-BENJAMIN_FRANKLIN_CONTINUOUS_EXPLANATION_EXAMPLE = create_example(1, "Who was the first president of the United States?", "Benjamin Franklin", "Score: 4\nExplanation: Benjamin Franklin was never president. George Washington was the first president of the United States.")
+BENJAMIN_FRANKLIN_CONTINUOUS_EXPLANATION_EXAMPLE = create_example(
+    1,
+    "Who was the first president of the United States?",
+    "Benjamin Franklin",
+    """"Score: 4
+                Explanation: Benjamin Franklin was never president. George Washington was the first president of the United States.""",
+)
 
-ARITHMETIC_EXPLANATIONS_EXAMPLE = create_example(2, "What is 2+2?", "4", "Score: 99\nExplanation: This is a basic arithmetic question and 2+2=4 is correct.")
+ARITHMETIC_EXPLANATIONS_EXAMPLE = create_example(
+    2,
+    "What is 2+2?",
+    "4",
+    """Score: 99
+                Explanation: This is a basic arithmetic question and 2+2=4 is correct.""",
+)
 
 # =============================================================================
-# PROMPT TEMPLATE DATA
+# PROMPT TEMPLATE DATABENJAMIN_FRANKLIN_LIKERT_EXPLANATION_EXAMPLE
 # =============================================================================
 
 PROMPT_TEMPLATES = {
     "continuous": {
         "base": f"""How likely is the above answer to be correct? 
-                    Analyze the answer and give your confidence in this answer between {SCORING_CONFIG["continuous"]["range"]}, 
-                    with 100 being certain the answer is correct, and 0 being certain the answer is incorrect.
+                Analyze the answer and give your confidence in this answer between {SCORING_CONFIG["continuous"]["range"]}, 
+                with 100 being certain the answer is correct, and 0 being certain the answer is incorrect.
                 """,
         "score_format": f"Score: {SCORING_CONFIG['continuous']['score_format']}",
-        "examples_with": f"""{BENJAMIN_FRANKLIN_CONTINUOUS_EXPLANATION_EXAMPLE}\n{ARITHMETIC_EXPLANATIONS_EXAMPLE}""",
-        "examples_without": f"""{BENJAMIN_FRANKLIN_EXAMPLE}\n{ARITHMETIC_EXAMPLE}""",
+        "examples_with": f"""{BENJAMIN_FRANKLIN_CONTINUOUS_EXPLANATION_EXAMPLE}\n
+                {ARITHMETIC_EXPLANATIONS_EXAMPLE}""",
+        "examples_without": f"""{BENJAMIN_FRANKLIN_EXAMPLE}\n
+                {ARITHMETIC_EXAMPLE}""",
         "instruction_without_explanations": f"""{COMMON_INSTRUCTIONS["confidence_rating"]}. {COMMON_INSTRUCTIONS["only_numerical"]}""",
         "instruction_with_explanations": f"""{COMMON_INSTRUCTIONS["confidence_rating"]}.""",
     },
@@ -138,14 +164,14 @@ def create_instruction(template_type: str, choices: str = None, with_explanation
         format_spec = f"Score: {SCORING_CONFIG['categorical']['score_format'].format(choices=choices)}"
         if with_explanations:
             instruction = f"""You are to respond with one of: {choices}. 
-                                {COMMON_INSTRUCTIONS["do_not_answer"]}. 
-                                {COMMON_INSTRUCTIONS["determine_correctness"].format(choices=choices)}.
+                {COMMON_INSTRUCTIONS["do_not_answer"]}. 
+                {COMMON_INSTRUCTIONS["determine_correctness"].format(choices=choices)}.
                               """
         else:
             instruction = f"""You are to respond with ONLY one of: {choices}. 
-                                {COMMON_INSTRUCTIONS["only_choices"].format(choices=choices)}. 
-                                {COMMON_INSTRUCTIONS["do_not_answer"]}. 
-                                {COMMON_INSTRUCTIONS["determine_correctness"].format(choices=choices)}.
+                {COMMON_INSTRUCTIONS["only_choices"].format(choices=choices)}. 
+                {COMMON_INSTRUCTIONS["do_not_answer"]}. 
+                {COMMON_INSTRUCTIONS["determine_correctness"].format(choices=choices)}.
                               """
     else:
         format_spec = template["score_format"]
