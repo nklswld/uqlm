@@ -14,7 +14,7 @@
 
 import pytest
 import numpy as np
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from uqlm.utils.nli import NLI
 
 
@@ -72,7 +72,7 @@ class TestNLIPredictHuggingFace:
         """Test that predict returns probability array by default."""
         nli = NLI()
         result = nli.predict(hypothesis="The sky is blue.", premise="The sky is blue.")
-        
+
         assert isinstance(result, np.ndarray)
         assert result.shape == (1, 3)  # [contradiction, neutral, entailment]
         assert result.sum() == pytest.approx(1.0)  # Probabilities should sum to 1
@@ -124,20 +124,20 @@ class TestNLIPredictLangChain:
     def test_predict_probabilities_with_langchain(self):
         """Test that LangChain model returns probabilities."""
         mock_llm = Mock()
-        
+
         # Mock responses for p_false, p_neutral, p_true queries
         mock_response_1 = Mock()
         mock_response_1.content = "No"
         mock_response_1.response_metadata = {}
-        
+
         mock_response_2 = Mock()
         mock_response_2.content = "No"
         mock_response_2.response_metadata = {}
-        
+
         mock_response_3 = Mock()
         mock_response_3.content = "Yes"
         mock_response_3.response_metadata = {}
-        
+
         mock_llm.invoke.side_effect = [mock_response_1, mock_response_2, mock_response_3]
 
         nli = NLI(nli_llm=mock_llm)
@@ -151,52 +151,47 @@ class TestNLIPredictLangChain:
     def test_predict_probabilities_with_logprobs(self):
         """Test that LangChain model uses logprobs when available."""
         mock_llm = Mock()
-        
+
         # Mock responses with logprobs (OpenAI-style)
         mock_response_1 = Mock()
         mock_response_1.content = "No"
         mock_response_1.response_metadata = {
-            'logprobs': {
-                'content': [{
-                    'top_logprobs': [
-                        {'token': 'yes', 'logprob': -3.0},  # exp(-3.0) ≈ 0.0498
-                        {'token': 'no', 'logprob': -0.1}    # exp(-0.1) ≈ 0.9048
-                    ]
-                }]
+            "logprobs": {
+                "content": [
+                    {
+                        "top_logprobs": [
+                            {"token": "yes", "logprob": -3.0},  # exp(-3.0) ≈ 0.0498
+                            {"token": "no", "logprob": -0.1},  # exp(-0.1) ≈ 0.9048
+                        ]
+                    }
+                ]
             }
         }
-        
+
         mock_response_2 = Mock()
         mock_response_2.content = "No"
-        mock_response_2.response_metadata = {
-            'logprobs': {
-                'content': [{
-                    'top_logprobs': [
-                        {'token': 'yes', 'logprob': -2.0},
-                        {'token': 'no', 'logprob': -0.5}
-                    ]
-                }]
-            }
-        }
-        
+        mock_response_2.response_metadata = {"logprobs": {"content": [{"top_logprobs": [{"token": "yes", "logprob": -2.0}, {"token": "no", "logprob": -0.5}]}]}}
+
         mock_response_3 = Mock()
         mock_response_3.content = "Yes"
         mock_response_3.response_metadata = {
-            'logprobs': {
-                'content': [{
-                    'top_logprobs': [
-                        {'token': 'yes', 'logprob': -0.1},  # High probability
-                        {'token': 'no', 'logprob': -3.0}
-                    ]
-                }]
+            "logprobs": {
+                "content": [
+                    {
+                        "top_logprobs": [
+                            {"token": "yes", "logprob": -0.1},  # High probability
+                            {"token": "no", "logprob": -3.0},
+                        ]
+                    }
+                ]
             }
         }
-        
+
         mock_llm.invoke.side_effect = [mock_response_1, mock_response_2, mock_response_3]
-        
+
         nli = NLI(nli_llm=mock_llm)
         result = nli.predict(hypothesis="The sky is blue.", premise="The sky is blue.", return_probabilities=True)
-        
+
         assert isinstance(result, np.ndarray)
         assert result.shape == (1, 3)
         assert result.sum() == pytest.approx(1.0)
@@ -208,43 +203,49 @@ class TestNLIPredictLangChain:
     def test_predict_probabilities_with_vertex_ai_logprobs(self):
         """Test that Vertex AI (Gemini) logprobs format is supported."""
         mock_llm = Mock()
-        
+
         # Mock responses with Vertex AI-style logprobs
         mock_response_1 = Mock()
         mock_response_1.content = "No"
         mock_response_1.response_metadata = {
-            'logprobs_result': [{
-                'token': 'No',
-                'logprob': -0.01,  # Very confident "No"
-                'top_logprobs': []
-            }]
+            "logprobs_result": [
+                {
+                    "token": "No",
+                    "logprob": -0.01,  # Very confident "No"
+                    "top_logprobs": [],
+                }
+            ]
         }
-        
+
         mock_response_2 = Mock()
         mock_response_2.content = "Yes"
         mock_response_2.response_metadata = {
-            'logprobs_result': [{
-                'token': 'Yes',
-                'logprob': -0.5,  # Moderately confident "Yes"
-                'top_logprobs': []
-            }]
+            "logprobs_result": [
+                {
+                    "token": "Yes",
+                    "logprob": -0.5,  # Moderately confident "Yes"
+                    "top_logprobs": [],
+                }
+            ]
         }
-        
+
         mock_response_3 = Mock()
         mock_response_3.content = "Yes"
         mock_response_3.response_metadata = {
-            'logprobs_result': [{
-                'token': 'Yes',
-                'logprob': -0.01,  # Very confident "Yes"
-                'top_logprobs': []
-            }]
+            "logprobs_result": [
+                {
+                    "token": "Yes",
+                    "logprob": -0.01,  # Very confident "Yes"
+                    "top_logprobs": [],
+                }
+            ]
         }
-        
+
         mock_llm.invoke.side_effect = [mock_response_1, mock_response_2, mock_response_3]
-        
+
         nli = NLI(nli_llm=mock_llm)
         result = nli.predict(hypothesis="The sky is blue.", premise="The sky is blue.", return_probabilities=True)
-        
+
         assert isinstance(result, np.ndarray)
         assert result.shape == (1, 3)
         assert result.sum() == pytest.approx(1.0)

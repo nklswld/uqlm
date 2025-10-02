@@ -137,6 +137,8 @@ exclude = [
     "site-packages",
     "venv",
 ]
+extend-exclude = ["uqlm/utils/prompts"]
+
 # Core settings
 line-length = 400
 
@@ -161,4 +163,3 @@ indent-style = "space"
 skip-magic-trailing-comma = true
 line-ending = "lf"
 docstring-code-format = true
-exclude = ["uqlm/utils/prompts"]

@@ -197,81 +197,80 @@ class NLI:
             except Exception as e:
                 warnings.warn(f"Error during LangChain NLI inference: {e}. Defaulting to 'neutral'.")
                 return "neutral"
-    
+
     def _extract_yes_probability_from_response(self, response: Any, response_text: str) -> float:
         """
         Extract the probability of "Yes" from a LangChain response.
-        
+
         If logprobs are available, uses the actual token probability.
         Otherwise, falls back to binary classification based on response text.
-        
+
         Supports both OpenAI and Vertex AI (Gemini) logprobs formats.
-        
+
         Parameters
         ----------
         response : AIMessage or similar
             The response object from the LangChain model
         response_text : str
             The lowercased content of the response
-        
+
         Returns
         -------
         float
             Probability estimate for "Yes" answer (between 0 and 1)
         """
         # Try to extract from logprobs if available
-        if hasattr(response, 'response_metadata') and response.response_metadata:
-            
+        if hasattr(response, "response_metadata") and response.response_metadata:
             # Vertex AI (Gemini) style logprobs
-            if 'logprobs_result' in response.response_metadata:
-                logprobs_result = response.response_metadata['logprobs_result']
+            if "logprobs_result" in response.response_metadata:
+                logprobs_result = response.response_metadata["logprobs_result"]
                 if logprobs_result and len(logprobs_result) > 0:
                     first_token_data = logprobs_result[0]
-                    token = first_token_data.get('token', '').strip().lower()
-                    logprob = first_token_data.get('logprob', None)
-                    
+                    token = first_token_data.get("token", "").strip().lower()
+                    logprob = first_token_data.get("logprob", None)
+
                     if logprob is not None:
                         prob = np.exp(logprob)
-                        
+
                         # For Vertex AI, we get the logprob of the actual generated token
                         # So we need to interpret based on what token was generated
-                        if token in ['yes', 'yes.', 'yes,']:
+                        if token in ["yes", "yes.", "yes,"]:
                             # Token is "yes", so probability of "yes" is high
                             return prob
-                        elif token in ['no', 'no.', 'no,']:
+                        elif token in ["no", "no.", "no,"]:
                             # Token is "no", so probability of "yes" is low
                             return 1.0 - prob
-            
+
             # OpenAI-style logprobs
-            if 'logprobs' in response.response_metadata:
-                logprobs_data = response.response_metadata['logprobs']
-                if logprobs_data and 'content' in logprobs_data:
-                    content_logprobs = logprobs_data['content']
+            if "logprobs" in response.response_metadata:
+                logprobs_data = response.response_metadata["logprobs"]
+                if logprobs_data and "content" in logprobs_data:
+                    content_logprobs = logprobs_data["content"]
                     if content_logprobs and len(content_logprobs) > 0:
                         # Get the first token's top logprobs
                         first_token = content_logprobs[0]
-                        if 'top_logprobs' in first_token:
-                            top_logprobs = first_token['top_logprobs']
+                        if "top_logprobs" in first_token:
+                            top_logprobs = first_token["top_logprobs"]
                             # Look for "Yes", "yes", "YES", "No", "no", "NO" tokens
                             yes_prob = 0.0
                             no_prob = 0.0
-                            
+
                             for logprob_item in top_logprobs:
-                                token = logprob_item.get('token', '').strip().lower()
-                                logprob = logprob_item.get('logprob', None)
-                                
+                                token = logprob_item.get("token", "").strip().lower()
+                                logprob = logprob_item.get("logprob", None)
+
                                 if logprob is not None:
                                     prob = np.exp(logprob)
-                                    if token in ['yes', 'yes.', 'yes,']:
+                                    if token in ["yes", "yes.", "yes,"]:
                                         yes_prob = max(yes_prob, prob)
-                                    elif token in ['no', 'no.', 'no,']:
+                                    elif token in ["no", "no.", "no,"]:
                                         no_prob = max(no_prob, prob)
-                            
+
                             # If we found yes/no probabilities, normalize them
                             total = yes_prob + no_prob
                             if total > 0:
                                 return yes_prob / total
-        
+
         # Fallback: binary classification based on text
         if "yes" in response_text[:10]:  # Check first 10 chars for yes
             return 1.0
