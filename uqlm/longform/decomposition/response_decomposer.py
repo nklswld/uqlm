@@ -34,12 +34,12 @@ class ResponseDecomposer:
             relevant parameters to the constructor of their `llm` object.
         """
         self.claim_decomposition_llm = claim_decomposition_llm
-        
+
     def decompose_sentences(self, responses: List[str], progress_bar: Optional[Progress] = None) -> List[List[str]]:
         """
         Parameters
         ----------
-        responses: List[str] 
+        responses: List[str]
             LLM response that will be decomposed into independent claims.
 
         progress_bar : rich.progress.Progress, default=None
@@ -55,7 +55,7 @@ class ResponseDecomposer:
             sentence_lists.append(self._get_sentences_from_response(response))
         time.sleep(0.1)
         return sentence_lists
-    
+
     async def decompose_claims(self, responses: List[str], progress_bar: Optional[Progress] = None) -> List[List[str]]:
         """
         Parameters
@@ -93,16 +93,16 @@ class ResponseDecomposer:
         sampled_claim_sets = await asyncio.gather(*tasks)
         time.sleep(0.1)
         return sampled_claim_sets
-    
+
     async def _decompose_claims(self, responses: List[str], progress_bar: Optional[Progress] = None, matched_claims: bool = True) -> List[str]:
         """Helper for decomposing list of responses into claims"""
         if not matched_claims:
-            progress_bar.update(self.progress_task, advance=1)            
+            progress_bar.update(self.progress_task, advance=1)
             progress_bar_use = None
         else:
             progress_bar_use = progress_bar
         tasks = [self._get_claims_from_response(response=response, progress_bar=progress_bar_use) for response in responses]
-        return await asyncio.gather(*tasks) 
+        return await asyncio.gather(*tasks)
 
     def _get_sentences_from_response(self, text: str) -> list[str]:
         """
@@ -132,7 +132,7 @@ class ResponseDecomposer:
             sentence = sentence.replace("<DECIMAL>", ".")
             sentences[i] = sentence.strip()
         return sentences
-    
+
     async def _get_claims_from_response(self, response: str, progress_bar: Optional[Progress] = None) -> Dict[str, str]:
         """Decompose sigle response into claims"""
         decomposed_response = await self.claim_decomposition_llm.ainvoke(get_claim_breakdown_template(response))
