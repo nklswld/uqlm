@@ -43,7 +43,7 @@ class LUQScorer(ClaimScorer):
         self.device = device
         self.nli = NLI(device=device, nli_model_name=nli_model_name, max_length=max_length)
 
-    def evaluate(self, claim_sets: List[List[str]], sampled_responses: Optional[List[List[str]]] = None, sampled_claims: Optional[List[List[List[str]]]] = None, progress_bar: Optional[Progress] = None) -> ClaimScores:
+    def evaluate(self, claim_sets: List[List[str]], sampled_responses: Optional[List[List[str]]] = None, sampled_claim_sets: Optional[List[List[List[str]]]] = None, progress_bar: Optional[Progress] = None) -> ClaimScores:
         """
         Evaluate the LUQ score and claim scores for a list of claims from each original response and sampled responses.
 
@@ -55,7 +55,7 @@ class LUQScorer(ClaimScorer):
         sampled_responses : list of list of strings
             Candidate responses to be compared to the decomposed original responses
             
-        sampled_claims : list of list of list of strings
+        sampled_claim_sets : list of list of list of strings
             Decomposed responses to be compared to the decomposed original responses
 
         progress_bar : rich.progress.Progress, default=None
@@ -69,15 +69,15 @@ class LUQScorer(ClaimScorer):
         if progress_bar:
             progress_task = progress_bar.add_task("  - Scoring claim/sentence sets with LUQ...", total=len(claim_sets))
         claim_entail_score_lists, claim_noncontradict_score_lists, claim_constrast_entail_score_lists = [], [], []
-        if sampled_responses and sampled_claims:
-            raise ValueError("Only one of sampled_responses and sampled_claims may be provided.")
+        if sampled_responses and sampled_claim_sets:
+            raise ValueError("Only one of sampled_responses and sampled_claim_sets may be provided.")
         if sampled_responses: # For response-to-claim or response-to-sentence comparisons
-            if sampled_claims:
-                raise ValueError("Only one of sampled_responses and sampled_claims may be provided.")     
+            if sampled_claim_sets:
+                raise ValueError("Only one of sampled_responses and sampled_claim_sets may be provided.")     
             samples_for_comparison = sampled_responses 
             matched_claims = False
         else:  # For matched claim-to-claim comparisons
-            samples_for_comparison = sampled_claims   
+            samples_for_comparison = sampled_claim_sets   
             matched_claims = True
         for (claim_set, sample_for_comparison) in zip(claim_sets, samples_for_comparison):
             claim_entail_scores, claim_noncontradict_scores, claim_constrast_entail_scores = self._compute_claim_level_scores(

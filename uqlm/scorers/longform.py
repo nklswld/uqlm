@@ -1,6 +1,7 @@
 import warnings
 from typing import Any, List, Optional
 import numpy as np
+from rich.progress import Progress
 from langchain_core.language_models.chat_models import BaseChatModel
 from uqlm.scorers.baseclass.uncertainty import UncertaintyQuantifier, UQResult
 from uqlm.longform.black_box import LUQScorer
@@ -97,6 +98,7 @@ class LongFormUQ(UncertaintyQuantifier):
         self.claim_sets = None
         self.sentence_sets = None
         self.sampled_responses = None
+        self.sampled_claim_sets = None
         self.num_responses = None
         self.luq_scorer = None
         self._validate_scorers(scorers)
@@ -163,27 +165,51 @@ class LongFormUQ(UncertaintyQuantifier):
         
         await self._decompose_responses(show_progress_bars)
         self._display_scoring_header(show_progress_bars)
+
+        score_result = self._score_from_decomposed(claim_sets=self.claim_sets, sentence_sets=self.sentence_sets, sampled_responses=self.sampled_responses, sampled_claim_sets=self.sampled_claim_sets, progress_bar=self.progress_bar)
         
+        self._stop_progress_bar()
+        self.progress_bar = None
+
+        return score_result
+    
+    def _score_from_decomposed(self, claim_sets: List[List[str]], sentence_sets: List[List[str]], sampled_responses: Optional[List[List[str]]] = None, sampled_claim_sets: Optional[List[List[List[str]]]] = None, progress_bar: Optional[Progress] = None) -> UQResult:
+        """
+        Compute confidence scores with specified scorers on provided LLM responses. Should only be used if responses and sampled responses
+        are already generated. Otherwise, use `generate_and_score`.
+
+        Parameters
+        ----------
+        claim_sets : list of list of strings
+            List of original responses decomposed into lists of either claims or sentences
+
+        sampled_responses : list of list of strings
+            Candidate responses to be compared to the decomposed original responses
+            
+        sampled_claim_sets : list of list of list of strings
+            Decomposed responses to be compared to the decomposed original responses
+
+        Returns
+        -------
+        UQResult
+            UQResult containing data (responses and scores) and metadata
+        """
         self.scores_dict = {k: [] for k in self.scorers}
         if self.sentence_level_bb_scorers:
-            self.bb_sentence_scores_dict = self.luq_scorer.evaluate(claim_sets=self.sentence_sets, sampled_responses=self.sampled_responses, progress_bar=self.progress_bar).to_dict()
+            self.bb_sentence_scores_dict = self.luq_scorer.evaluate(claim_sets=sentence_sets, sampled_responses=sampled_responses, progress_bar=progress_bar).to_dict()
             for scorer in self.sentence_level_bb_scorers:
                 self.scores_dict[scorer] = [np.mean(claim_scores) for claim_scores in self.bb_sentence_scores_dict[DATACLASS_TO_SCORER_MAP[scorer]]]
         if self.claim_level_bb_scorers:
-            claim_level_scores_result = self.luq_scorer.evaluate(claim_sets=self.claim_sets, sampled_responses=self.sampled_responses, progress_bar=self.progress_bar).to_dict()
+            claim_level_scores_result = self.luq_scorer.evaluate(claim_sets=claim_sets, sampled_responses=sampled_responses, progress_bar=progress_bar).to_dict()
             self.bb_claim_scores_dict.update(claim_level_scores_result)
             for scorer in self.claim_level_bb_scorers:
                 self.scores_dict[scorer] = [np.mean(claim_scores) for claim_scores in self.bb_claim_scores_dict[DATACLASS_TO_SCORER_MAP[scorer]]]
         if self.matched_claim_bb_scorers:
-            matched_claim_scores_result = self.luq_scorer.evaluate(claim_sets=self.claim_sets, sampled_claims=self.sampled_claim_sets, progress_bar=self.progress_bar).to_dict()
+            matched_claim_scores_result = self.luq_scorer.evaluate(claim_sets=claim_sets, sampled_claim_sets=sampled_claim_sets, progress_bar=progress_bar).to_dict()
             self.bb_claim_scores_dict.update(matched_claim_scores_result)
             for scorer in self.matched_claim_bb_scorers:
-                self.scores_dict[scorer] = [np.mean(claim_scores) for claim_scores in self.bb_claim_scores_dict[DATACLASS_TO_SCORER_MAP[scorer]]]                
-        result = self._construct_result()
-        
-        self._stop_progress_bar()
-        self.progress_bar = None
-        return result
+                self.scores_dict[scorer] = [np.mean(claim_scores) for claim_scores in self.bb_claim_scores_dict[DATACLASS_TO_SCORER_MAP[scorer]]]
+        return self._construct_result()
 
     async def _decompose_responses(self, show_progress_bars) -> None:
         """Display header and decompose responses"""
