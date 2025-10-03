@@ -14,8 +14,8 @@
 
 import asyncio
 import time
-from typing import Dict, List, Optional
-from uqlm.utils.prompt_templates import get_claim_breakdown_template
+from typing import List, Optional
+from uqlm.utils.prompts import get_claim_breakdown_prompt
 from rich.progress import Progress
 from langchain_core.language_models.chat_models import BaseChatModel
 import re
@@ -133,9 +133,49 @@ class ResponseDecomposer:
             sentences[i] = sentence.strip()
         return sentences
 
-    async def _get_claims_from_response(self, response: str, progress_bar: Optional[Progress] = None) -> Dict[str, str]:
-        """Decompose sigle response into claims"""
-        decomposed_response = await self.claim_decomposition_llm.ainvoke(get_claim_breakdown_template(response))
+    async def _get_claims_from_response(self, response: str, progress_bar: Optional[Progress] = None) -> List[str]:
+        """Decompose single response into claims using LLM and extract claims from the result"""
+        # Get LLM decomposition
+        decomposed_response = await self.claim_decomposition_llm.ainvoke(get_claim_breakdown_prompt(response))
         if progress_bar:
             progress_bar.update(self.progress_task, advance=1)
-        return re.split(r"### ", decomposed_response.content)[1:]
+
+        # Extract claims from LLM response
+        llm_response = decomposed_response.content
+
+        # Case where LLM couldn't find any claims (responds with ### NONE)
+        if self._is_none_response(llm_response):
+            return []
+
+        # Look for ### markers that are at the start of lines
+        claim_pattern = r"(?:^|\n)\s*###\s*(.+?)(?=\n\s*###|\n\s*$|$)"
+        matches = re.findall(claim_pattern, llm_response, re.MULTILINE | re.DOTALL)
+
+        # Clean and collect non-empty claims
+        claims = []
+        for match in matches:
+            # Basic whitespace cleanup
+            cleaned_claim = re.sub(r"\s+", " ", match.strip())
+            if cleaned_claim:  # Skip empty claims
+                claims.append(cleaned_claim)
+
+        return claims
+
+    def _is_none_response(self, llm_response: str) -> bool:
+        """
+        Check if the LLM response indicates no claims are present.
+
+        Detects the template-instructed "### NONE" response and common variations.
+
+        Parameters
+        ----------
+        llm_response : str
+            The raw response from the LLM
+
+        Returns
+        -------
+        bool
+            True if the response indicates no claims, False otherwise
+        """
+        # Check for the template-instructed "### NONE" pattern (case-insensitive)
+        return bool(re.search(r"###\s*none\b", llm_response.strip(), re.IGNORECASE))
