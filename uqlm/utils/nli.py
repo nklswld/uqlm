@@ -1,5 +1,6 @@
-from typing import Any, Optional
+from typing import Any, Optional, List, Union
 import warnings
+import asyncio
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import numpy as np
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -279,3 +280,135 @@ class NLI:
         else:
             # If unclear, assign neutral probability
             return 0.5
+
+    # ===== Async Methods =====
+
+    async def apredict(self, hypothesis: str, premise: str, return_probabilities: bool = True) -> Any:
+        """
+        Async version of predict() for single NLI prediction.
+
+        This method computes NLI predictions on the provided inputs asynchronously.
+        For LangChain models, this enables concurrent LLM calls which significantly improves performance.
+        For HuggingFace models, this wraps the synchronous call for API consistency.
+
+        Parameters
+        ----------
+        hypothesis : str
+            The hypothesis text for NLI classification.
+
+        premise : str
+            The premise text for NLI classification.
+
+        return_probabilities : bool, default=True
+            If True, returns probabilities for all three classes [contradiction, neutral, entailment].
+            If False, returns a single class label string ("contradiction", "neutral", or "entailment").
+
+        Returns
+        -------
+        numpy.ndarray or str
+            If return_probabilities=True: numpy array with 3 probabilities for [contradiction, neutral, entailment]
+            If return_probabilities=False: string with the predicted class label
+        """
+        if self.is_hf_model:
+            # HF models are synchronous, so we just call the sync method
+            # Wrapped in an async context for API consistency
+            return self._predict_hf(hypothesis, premise, return_probabilities)
+        else:
+            return await self._apredict_langchain(hypothesis, premise, return_probabilities)
+
+    async def _apredict_langchain(self, hypothesis: str, premise: str, return_probabilities: bool = True) -> Any:
+        """
+        Async version of _predict_langchain() using LangChain's async interface.
+
+        This method uses ainvoke() and asyncio.gather() to make concurrent LLM calls,
+        which can significantly reduce latency (up to 3x faster when return_probabilities=True).
+
+        Parameters
+        ----------
+        hypothesis : str
+            The hypothesis text (claim) for NLI classification.
+
+        premise : str
+            The premise text (source text) for NLI classification.
+
+        return_probabilities : bool, default=True
+            If True, estimates probabilities for all three classes by querying the LLM 3 times concurrently.
+            If False, performs a single query to determine the most likely class.
+
+        Returns
+        -------
+        numpy.ndarray or str
+            If return_probabilities=True: numpy array with 3 estimated probabilities for [contradiction, neutral, entailment]
+            If return_probabilities=False: string with the predicted class label
+        """
+        if return_probabilities:
+            # Query the LLM for each class concurrently to get probability estimates
+            async def query_style(style: str) -> float:
+                """Query a single style and return probability."""
+                prompt = get_entailment_prompt(claim=hypothesis, source_text=premise, style=style)
+                messages = [
+                    SystemMessage("You are a helpful assistant that evaluates natural language inference relationships."),
+                    HumanMessage(prompt)
+                ]
+
+                try:
+                    response = await self.model.ainvoke(messages)
+                    response_text = response.content.strip().lower()
+                    prob = self._extract_yes_probability_from_response(response, response_text)
+                    return prob
+                except Exception as e:
+                    warnings.warn(f"Error during async LangChain NLI inference for style '{style}': {e}")
+                    return None
+
+            # Execute all three queries concurrently
+            try:
+                prob_results = await asyncio.gather(
+                    query_style("p_false"),
+                    query_style("p_neutral"),
+                    query_style("p_true")
+                )
+
+                # Check if any queries failed
+                if None in prob_results:
+                    warnings.warn("One or more async NLI queries failed. Assigning uniform probabilities.")
+                    return np.array([[1 / 3, 1 / 3, 1 / 3]])
+
+                probabilities = np.array(prob_results)
+
+                # Normalize probabilities
+                if probabilities.sum() > 0:
+                    probabilities = probabilities / probabilities.sum()
+                else:
+                    probabilities = np.array([1 / 3, 1 / 3, 1 / 3])
+
+                return probabilities.reshape(1, 3)
+
+            except Exception as e:
+                warnings.warn(f"Error during async LangChain NLI inference: {e}. Assigning uniform probabilities.")
+                return np.array([[1 / 3, 1 / 3, 1 / 3]])
+
+        else:
+            # Single query to determine the class
+            prompt = get_entailment_prompt(claim=hypothesis, source_text=premise, style="nli_classification")
+            messages = [
+                SystemMessage("You are a helpful assistant that evaluates natural language inference relationships."),
+                HumanMessage(prompt)
+            ]
+
+            try:
+                response = await self.model.ainvoke(messages)
+                response_text = response.content.strip().lower()
+
+                # Parse response to get class label
+                if "entailment" in response_text:
+                    return "entailment"
+                elif "contradiction" in response_text:
+                    return "contradiction"
+                elif "neutral" in response_text:
+                    return "neutral"
+                else:
+                    warnings.warn(f"Unclear NLI response from async LangChain model: '{response_text}'. Defaulting to 'neutral'.")
+                    return "neutral"
+            except Exception as e:
+                warnings.warn(f"Error during async LangChain NLI inference: {e}. Defaulting to 'neutral'.")
+                return "neutral"
