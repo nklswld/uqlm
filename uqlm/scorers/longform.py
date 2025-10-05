@@ -205,7 +205,7 @@ class LongFormUQ(UncertaintyQuantifier):
             claim_level_scores_result = self.luq_scorer.evaluate(claim_sets=claim_sets, sampled_responses=sampled_responses, progress_bar=progress_bar).to_dict()
             self.bb_claim_scores_dict.update(claim_level_scores_result)
             for scorer in self.claim_level_bb_scorers:
-                self.scores_dict[scorer] = self._aggregate_scores(self.bb_sentence_scores_dict[DATACLASS_TO_SCORER_MAP[scorer]])
+                self.scores_dict[scorer] = self._aggregate_scores(self.bb_claim_scores_dict[DATACLASS_TO_SCORER_MAP[scorer]])
         if self.matched_claim_bb_scorers:
             matched_claim_scores_result = self.luq_scorer.evaluate(claim_sets=claim_sets, sampled_claim_sets=sampled_claim_sets, progress_bar=progress_bar).to_dict()
             self.bb_claim_scores_dict.update(matched_claim_scores_result)
@@ -222,14 +222,14 @@ class LongFormUQ(UncertaintyQuantifier):
             self.claim_sets = await self.decomposer.decompose_claims(responses=self.responses, progress_bar=self.progress_bar)
         if self.matched_claim_bb_scorers:
             self.sampled_claim_sets = await self.decomposer.decompose_candidate_claims(sampled_responses=self.sampled_responses, progress_bar=self.progress_bar)
-
+            
     def _aggregate_scores(self, scores_list: Dict[str, Any]) -> Union[List[float], List[List[float]]]:
         if self.aggregation_method == "mean":
             return [np.mean(claim_scores) for claim_scores in scores_list]
         elif self.aggregation_method == "min":
-            return [np.min(claim_scores) for claim_scores in scores_list]
+            return [np.min(claim_scores) for claim_scores in scores_list]      
         else:
-            return [list(claim_scores) for claim_scores in scores_list]
+            return [list(claim_scores) for claim_scores in scores_list]      
 
     def _construct_result(self) -> Any:
         """Constructs UQResult object"""
