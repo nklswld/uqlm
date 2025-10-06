@@ -14,8 +14,7 @@
 
 import pytest
 import numpy as np
-import asyncio
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import Mock
 from uqlm.utils.nli import NLI
 
 
@@ -401,12 +400,13 @@ class TestNLIComparison:
 @pytest.fixture
 def mock_async_llm():
     """Fixture for a mock LangChain LLM with async support."""
+
     async def ainvoke_response(messages):
         mock_response = Mock()
         mock_response.content = "Yes"
         mock_response.response_metadata = {}
         return mock_response
-    
+
     mock_llm = Mock()
     mock_llm.ainvoke = ainvoke_response
     return mock_llm
@@ -420,7 +420,7 @@ class TestNLIAsyncMethods:
         """Test async prediction with HuggingFace models."""
         nli = NLI()
         result = await nli.apredict("The sky is blue.", "The sky is blue.")
-        
+
         assert isinstance(result, np.ndarray)
         assert result.shape == (1, 3)
         assert result.sum() == pytest.approx(1.0)
@@ -429,18 +429,18 @@ class TestNLIAsyncMethods:
     async def test_apredict_with_langchain(self, mock_async_llm):
         """Test async prediction with LangChain model."""
         nli = NLI(nli_llm=mock_async_llm)
-        
+
         # Test with probabilities
         result_probs = await nli.apredict("Test", "Test", return_probabilities=True)
         assert isinstance(result_probs, np.ndarray)
         assert result_probs.shape == (1, 3)
-        
+
         # Test with class label
         async def ainvoke_class(messages):
             mock_response = Mock()
             mock_response.content = "entailment"
             return mock_response
-        
+
         mock_async_llm.ainvoke = ainvoke_class
         result_class = await nli.apredict("Test", "Test", return_probabilities=False)
         assert result_class == "entailment"
@@ -449,23 +449,25 @@ class TestNLIAsyncMethods:
     async def test_apredict_error_handling(self):
         """Test async prediction handles errors gracefully."""
         mock_llm = Mock()
-        
+
         # Test exception handling for probabilities
         async def ainvoke_error(messages):
             raise Exception("API Error")
+
         mock_llm.ainvoke = ainvoke_error
-        
+
         nli = NLI(nli_llm=mock_llm)
         result = await nli.apredict("Test", "Test", return_probabilities=True)
-        assert np.allclose(result, [[1/3, 1/3, 1/3]])
-        
+        assert np.allclose(result, [[1 / 3, 1 / 3, 1 / 3]])
+
         # Test unclear response handling for class labels
         async def ainvoke_unclear(messages):
             mock_response = Mock()
             mock_response.content = "I don't know"
             return mock_response
+
         mock_llm.ainvoke = ainvoke_unclear
-        
+
         result = await nli.apredict("Test", "Test", return_probabilities=False)
         assert result == "neutral"
 

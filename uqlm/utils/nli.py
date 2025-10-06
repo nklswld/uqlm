@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, Union
+from typing import Any, Optional
 import warnings
 import asyncio
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
@@ -346,10 +346,7 @@ class NLI:
             async def query_style(style: str) -> float:
                 """Query a single style and return probability."""
                 prompt = get_entailment_prompt(claim=hypothesis, source_text=premise, style=style)
-                messages = [
-                    SystemMessage("You are a helpful assistant that evaluates natural language inference relationships."),
-                    HumanMessage(prompt)
-                ]
+                messages = [SystemMessage("You are a helpful assistant that evaluates natural language inference relationships."), HumanMessage(prompt)]
 
                 try:
                     response = await self.model.ainvoke(messages)
@@ -362,11 +359,7 @@ class NLI:
 
             # Execute all three queries concurrently
             try:
-                prob_results = await asyncio.gather(
-                    query_style("p_false"),
-                    query_style("p_neutral"),
-                    query_style("p_true")
-                )
+                prob_results = await asyncio.gather(query_style("p_false"), query_style("p_neutral"), query_style("p_true"))
 
                 # Check if any queries failed
                 if None in prob_results:
@@ -390,10 +383,7 @@ class NLI:
         else:
             # Single query to determine the class
             prompt = get_entailment_prompt(claim=hypothesis, source_text=premise, style="nli_classification")
-            messages = [
-                SystemMessage("You are a helpful assistant that evaluates natural language inference relationships."),
-                HumanMessage(prompt)
-            ]
+            messages = [SystemMessage("You are a helpful assistant that evaluates natural language inference relationships."), HumanMessage(prompt)]
 
             try:
                 response = await self.model.ainvoke(messages)
