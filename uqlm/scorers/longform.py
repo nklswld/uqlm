@@ -190,8 +190,8 @@ class LongFormUQ(UncertaintyQuantifier):
         UQResult
             UQResult containing data (responses and scores) and metadata
         """
+        claim_sets = self.claim_sets if self.granularity == "claim" else self.sentence_sets
         if self.mode == "unit_response":
-            claim_sets = self.claim_sets if self.granularity == "claim" else self.sentence_sets
             score_results = self.unit_response_scorer.evaluate(claim_sets=claim_sets, sampled_responses=sampled_responses, progress_bar=progress_bar).to_dict()
         elif self.mode == "matched_unit":
             sampled_claim_sets = self.sampled_claim_sets if self.granularity == "claim" else self.sampled_sentence_sets

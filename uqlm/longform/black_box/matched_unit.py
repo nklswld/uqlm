@@ -51,8 +51,8 @@ class MatchedUnitScorer(ClaimScorer):
         if not set(agreement_functions).issubset(set(ALL_AGREEMENT_SCORER_NAMES)):
             raise ValueError("""agreement_functions must be subset of ["nli", "bertscore", "cosine_sim"]""")
         self.nli = NLI(device=device, nli_model_name=nli_model_name, max_length=max_length) if "nli" in agreement_functions else None
-        self.cosine_scorer = CosineScorer(transformer=transformer) if "cosine" in agreement_functions else None
-        self.bert_scorer = BertScorer(device=device) if "bertscore" in agreement_functions else None
+        self.cosine_scorer = CosineScorer(transformer=transformer) if "cosine_sim" in agreement_functions else None
+        self.bert_scorer = BertScorer(device=device) if "bert_score" in agreement_functions else None
         self.progress_bar = None
 
     def evaluate(self, claim_sets: List[List[str]], sampled_claim_sets: List[List[List[str]]] = None, progress_bar: Optional[Progress] = None) -> ClaimScores:
