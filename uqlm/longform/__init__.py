@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from uqlm.longform.decomposition.response_decomposer import ResponseDecomposer
-from uqlm.longform.black_box.luq import LUQScorer
+from uqlm.longform.black_box.matched_unit import MatchedUnitScorer
+from uqlm.longform.black_box.unit_response import UnitResponseScorer
 
-__all__ = ["ResponseDecomposer", "LUQScorer"]
+__all__ = ["ResponseDecomposer", "MatchedUnitScorer", "UnitResponseScorer"]

@@ -55,6 +55,28 @@ class ResponseDecomposer:
             sentence_lists.append(self._get_sentences_from_response(response))
         time.sleep(0.1)
         return sentence_lists
+    
+    def decompose_candidate_sentences(self, sampled_responses: List[List[str]], progress_bar: Optional[Progress] = None) -> List[List[List[str]]]:
+        """
+        Parameters
+        ----------
+        sampled_responses: List[List[str]]
+            List of lists of sampled responses to be decomposed
+
+        progress_bar : rich.progress.Progress, default=None
+            If provided, displays a progress bar while scoring responses
+        """
+        num_responses = len(sampled_responses[0])
+        if progress_bar:
+            self.progress_task = progress_bar.add_task(" - Decomposing candidate responses into sentences...", total=len(sampled_responses) * num_responses)
+        sampled_sentences_sets = []
+        for candidates in sampled_responses:
+            sentence_sets_i = self.decompose_sentences(responses=candidates)
+            sampled_sentences_sets.append(sentence_sets_i)
+            if progress_bar:
+                progress_bar.update(self.progress_task, advance=num_responses)                
+        time.sleep(0.1)
+        return sampled_sentences_sets
 
     async def decompose_claims(self, responses: List[str], progress_bar: Optional[Progress] = None) -> List[List[str]]:
         """
