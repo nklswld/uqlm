@@ -7,12 +7,13 @@ from rich.progress import Progress
 from langchain_core.language_models.chat_models import BaseChatModel
 from uqlm.utils.response_generator import ResponseGenerator
 from uqlm.longform.decomposition.response_decomposer import ResponseDecomposer
-from uqlm.utils.prompt_templates import get_factoid_template, get_question_template, get_answer_template
+from uqlm.utils.prompt_templates import get_factoid_template, get_question_template, get_answer_template, get_claim_breakdown_template
 from uqlm.utils.results import UQResult
+from uqlm.scorers import BlackBoxUQ
 
 
 class ClaimQAScorer():
-    def __init__(self, llm: BaseChatModel, llm_decomposer: BaseChatModel=None, llm_questioner: BaseChatModel=None, bb_scorer: Any=None, response_template: callable=get_factoid_template, system_prompt: str="You are a helpful assistant.", max_calls_per_min: int=1000, use_n_param: bool=False, num_factoids: int = 7, num_questions: int = 2, num_answers: int = 2):
+    def __init__(self, llm: BaseChatModel, llm_decomposer: BaseChatModel=None, llm_questioner: BaseChatModel=None, black_box_scorers: Optional[List[str]] = None, response_template: str = "atomic", device: Any = None, system_prompt: str="You are a helpful assistant.", max_calls_per_min: int=1000, use_n_param: bool=False, num_factoids: int = 7, num_questions: int = 2, num_claim_qa_responses: int = 2):
         """
         Initialize the ClaimQAScorer.
 
@@ -24,10 +25,8 @@ class ClaimQAScorer():
             The LLM to use for decomposing the claims.
         llm_questioner : BaseChatModel
             The LLM to use for generating questions.
-        bb_scorer : Any
-            The black box scorer to use for scoring the answers.
-        response_template : callable
-            The template to use for generating responses.
+        response_template : str, default="atomic"
+            The template to use for generating responses. Choose from "atomic" or "factoid".
         system_prompt : str
             The system prompt to use for generating responses. Default is "You are a helpful assistant."
         max_calls_per_min : int
@@ -38,20 +37,25 @@ class ClaimQAScorer():
             The number of factoids to generate for each response.
         num_questions : int, default=2
             The number of questions to generate for each factoid.
-        num_answers : int, default=2
-            The number of answers to generate for each question.
+        num_claim_qa_responses : int, default=2
+            The number of responses to generate for each claim-inverted question.
         """
         self.llm = llm
         self.llm_decomposer = llm_decomposer if llm_decomposer is not None else llm
         self.llm_questioner = llm_questioner if llm_questioner is not None else self.llm_decomposer
-        self.bb_scorer = bb_scorer
+        self.bb_object = BlackBoxUQ(llm=llm, scorers=black_box_scorers, device=device, max_calls_per_min=max_calls_per_min)
         self.system_prompt = system_prompt
         self.max_calls_per_min = max_calls_per_min
         self.use_n_param = use_n_param
         self.num_factoids = num_factoids
         self.num_questions = num_questions
-        self.num_answers = num_answers
-        self.response_template = response_template
+        self.num_claim_qa_responses = num_claim_qa_responses
+        if response_template == "atomic":
+            self.response_template = get_claim_breakdown_template
+        elif response_template == "factoid":
+            self.response_template = get_factoid_template
+        else:
+            raise ValueError("""response_template must be either "atomic" or "factoid".""")
 
     async def generate_and_score(self, prompts: List[str], progress_bar: Optional[Progress] = None):
         """
@@ -93,28 +97,29 @@ class ClaimQAScorer():
 
         if progress_bar:
             progress_task = progress_bar.add_task("  - Computing ClaimQA Score...", total=len(self.factoids))
-        self.response_scores = {key: [] for key in self.bb_scorer.scorers}
+        self.response_scores = {key: [] for key in self.bb_object.scorers}
         for i, response in enumerate(responses):
-            tmp = await self._compute_factoid_scores(prompt=self.prompts[i], response=responses[i], factoids=self.factoids[i])
+            tmp = await self._compute_factoid_scores(original_prompt=self.prompts[i], original_response=responses[i], factoids=self.factoids[i])
             for key in self.response_scores:
                 self.response_scores[key].append(tmp[key])
             if progress_bar:
                 progress_bar.update(progress_task, advance=1)
         print("Factoids: ", self.factoids)
+        print(" ")
         print("Response-level scores: ", self.response_scores)
         return self._construct_result()
 
-    async def _compute_factoid_scores(self, prompt: str, response: str, factoids: List[List[str]]) -> List[float]:
+    async def _compute_factoid_scores(self, original_prompt: str, original_response: str, factoids: List[List[str]]) -> List[float]:
         """
         Compute the ClaimQA scores for a given set of factoids.
 
         Parameters
         ----------
-        prompt : str
-            The prompt to be scored.
-        response : str
-            The response to be scored.
-        factoid : List[str]
+        original_prompt : str
+            The original prompt to be scored.
+        original_response : str
+            The original response to be scored.
+        factoids : List[str]
             A list of factoids to be evaluated.
 
         Returns
@@ -122,18 +127,21 @@ class ClaimQAScorer():
         List[float]
             A dictionary of ClaimQA scores for the given set of factoids.
         """
-        claim_qa_scores = {key: [] for key in self.bb_scorer.scorers}
+        claim_qa_scores = {key: [] for key in self.bb_object.scorers}
         print("Factoids for ith response: ", factoids)
+        print(" ")
         for factoid_i in factoids[:self.num_factoids]: # TODO: Appropriately implement self.num_factoids to generate the number of claims/factoids
             #Generate questions on each factoid
-            prompt = get_question_template(response, factoid_i, self.num_questions)
-            print("Prompt: ", prompt)
-            questions = await self._generate_responses(llm=self.llm_questioner, prompts=prompt)
-            print("Questions: ", questions)
-            questions = re.split(r"### ", questions["responses"][0])[1:]
-            print("Questions: ", questions)
-            final_questions = [get_answer_template(prompt=prompt, response=response, question=question) for question in questions]
+            create_question_prompt = get_question_template(original_response, factoid_i, self.num_questions)
+            print("Prompt: ", create_question_prompt)
+            print(" ")
+            claim_questions_result = await self._generate_responses(llm=self.llm_questioner, prompts=[create_question_prompt])
+            claim_questions = re.split(r"### ", claim_questions_result["responses"][0])[1:]
+            print("Questions: ", claim_questions)
+            print(" ")
+            final_questions = [get_answer_template(original_question=original_prompt, original_response=original_response, claim_question=claim_question) for claim_question in claim_questions]
             print("Final questions: ", final_questions)
+            print(" ")
             if len(final_questions) == 0:
                 print("No questions generated for factoid: ", factoid_i, " -- returning nan")
                 for key in claim_qa_scores:
@@ -141,9 +149,9 @@ class ClaimQAScorer():
                 continue
 
             #Generate and score answers on each question
-            bb_result = self.bb_scorer.generate_and_score(prompts=final_questions, num_answers=self.num_answers)
+            bb_result = await self.bb_object.generate_and_score(prompts=final_questions, num_responses=self.num_claim_qa_responses, show_progress_bars=False)
             for key in claim_qa_scores:
-                claim_qa_scores[key].append(np.mean(bb_result["data"][key]))
+                claim_qa_scores[key].append(np.mean(bb_result.to_dict()["data"][key]))
         return {key: np.mean(claim_qa_scores[key]) for key in claim_qa_scores}
 
     async def _generate_responses(self, llm, prompts: List[str], count: int = 1, progress_bar: Optional[Progress] = None) -> List[str]:

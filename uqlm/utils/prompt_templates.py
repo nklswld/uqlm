@@ -195,30 +195,30 @@ def get_question_template(response: str, factoid_i: str, num_questions: int = 3)
 
     {factoid_i}
     
-    Generate a list of {num_questions} questions, that might have generated the sentence in the context of the preceding original text, as well as their answers. Please do not use specific facts that appear in the follow-up sentence when formulating the question. Make the questions and answers diverse. Avoid yes-no questions. The answers should not be a full sentence and as short as possible, e.g. only a name, place, or thing. Output each question in one single line starting with ###. Do not include other formatting.
+    Generate a list of {num_questions} questions, that might have generated the sentence in the context of the preceding original text. Please do not use specific facts that appear in the follow-up sentence when formulating the question. Make the questions and answers diverse. Avoid yes-no questions. Output each question in one single line starting with ###. Do not include other formatting.
 
     You should only return the final answer. Now your answer is:
     """
 
     return question_template
 
-def get_answer_template(prompt: str, response: str, question: str) -> str:
+def get_answer_template(original_question: str, original_response: str, claim_question: str) -> str:
     """
     Parameters
     ----------
-    prompt: str
-        The prompt to be used for generating the answer.
-    response: str
-        The response to be used for generating the answer.
-    question: str
-        The question to be used for generating the answer.
+    original_question: str
+        The original question to be used for generating the answer.
+    original_response: str
+        The original response to be used for generating the answer.
+    claim_question: str
+        The claim question to be used for generating the answer.
     """
 
     answer_template = f"""
-    We are writing an answer to the question “{prompt}”. So far we have written:
-    {response}
+    We are writing an answer to the question “{original_question}”. So far we have written:
+    {original_response}
     The next sentence should be the answer to the following question:
-    {question}
+    {claim_question}
     Please answer this question. Do not answer in a full sentence. Answer with as few words as possible, e.g. only a name, place, or thing.
 
     You should only return the final answer. Now your answer is:
