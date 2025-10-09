@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from uqlm.longform.black_box.luq import LUQScorer
+from uqlm.longform.black_box.matched_unit import MatchedUnitScorer
+from uqlm.longform.black_box.unit_response import UnitResponseScorer
 from uqlm.longform.black_box.claimqa import ClaimQAScorer
 
-__all__ = ["LUQScorer", "ClaimQAScorer"]
+__all__ = ["MatchedUnitScorer", "UnitResponseScorer", "ClaimQAScorer"
