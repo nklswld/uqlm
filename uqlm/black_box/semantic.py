@@ -26,7 +26,7 @@ from uqlm.utils.nli import NLI
 logging.set_verbosity_error()
 
 
-class NLIScorer(SimilarityScorer):
+class SemanticScorer(SimilarityScorer):
     def __init__(self, device: Any = None, verbose: bool = False, nli_model_name: str = "microsoft/deberta-large-mnli", max_length: int = 2000) -> None:
         """
         A class to computing NLI-based confidence scores. This class offers two types of confidence scores, namely
@@ -189,14 +189,15 @@ class NLIScorer(SimilarityScorer):
             avg_nli_score, entailment = 1, True
         else:
             left = self.nli_model.predict(hypothesis=response1, premise=response2)
-            left_label = self.label_mapping[left.argmax(axis=1)[0]]
+            left_label = left.ternary_label
 
             right = self.nli_model.predict(hypothesis=response2, premise=response1)
-            right_label = self.label_mapping[right.argmax(axis=1)[0]]
-            s1, s2 = 1 - left[:, 0], 1 - right[:, 0]
+            right_label = right.ternary_label
+            s1 = 1 - left.contradiction_probability
+            s2 = 1 - right.contradiction_probability
 
             entailment = left_label == "entailment" or right_label == "entailment"
-            avg_nli_score = ((s1 + s2) / 2)[0]
+            avg_nli_score = (s1 + s2) / 2
         return {"score": avg_nli_score, "entailment": entailment}
 
     def _cluster_responses(self, responses: List[str]) -> Any:
@@ -274,3 +275,4 @@ class NLIScorer(SimilarityScorer):
             return sorted(responses, key=lambda x: (x != mode_str, x))
         else:
             return sorted(responses, key=len, reverse=True)
+

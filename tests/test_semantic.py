@@ -14,7 +14,7 @@
 
 import gc
 import pytest
-from uqlm.black_box.nli import NLIScorer
+from uqlm.black_box.semantic import SemanticScorer
 
 
 @pytest.fixture
@@ -29,20 +29,20 @@ def text2():
 
 @pytest.fixture
 def nli_model():
-    return NLIScorer()
+    return SemanticScorer()
 
 
 @pytest.fixture
 def nli_model_cpu():
-    return NLIScorer(verbose=True, device="cpu")
+    return SemanticScorer(verbose=True, device="cpu")
 
 
 @pytest.mark.flaky(reruns=3)
 def test_nli(text1, text2, nli_model):
-    probabilities = nli_model.nli_model.predict(text1, text2)
+    result = nli_model.nli_model.predict(text1, text2)
     del nli_model
     gc.collect()
-    assert abs(float(probabilities[0][0]) - 0.00159405) < 1e-5
+    assert abs(result.contradiction_probability - 0.00159405) < 1e-5
 
 
 @pytest.mark.flaky(reruns=3)
