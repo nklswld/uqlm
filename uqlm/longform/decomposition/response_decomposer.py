@@ -59,7 +59,7 @@ class ResponseDecomposer:
             sentence_lists.append(self._get_sentences_from_response(response))
         time.sleep(0.1)
         return sentence_lists
-    
+
     def decompose_candidate_sentences(self, sampled_responses: List[List[str]], progress_bar: Optional[Progress] = None) -> List[List[List[str]]]:
         """
         Parameters
@@ -78,7 +78,7 @@ class ResponseDecomposer:
             sentence_sets_i = self.decompose_sentences(responses=candidates)
             sampled_sentences_sets.append(sentence_sets_i)
             if progress_bar:
-                progress_bar.update(self.progress_task, advance=num_responses)                
+                progress_bar.update(self.progress_task, advance=num_responses)
         time.sleep(0.1)
         return sampled_sentences_sets
 
