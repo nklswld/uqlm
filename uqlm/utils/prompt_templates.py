@@ -202,6 +202,7 @@ def get_question_template(response: str, factoid_i: str, num_questions: int = 3)
 
     return question_template
 
+
 def get_answer_template(original_question: str, original_response: str, claim_question: str) -> str:
     """
     Parameters

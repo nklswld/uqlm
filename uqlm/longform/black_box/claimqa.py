@@ -12,8 +12,22 @@ from uqlm.utils.results import UQResult
 from uqlm.scorers import BlackBoxUQ
 
 
-class ClaimQAScorer():
-    def __init__(self, llm: BaseChatModel, llm_decomposer: BaseChatModel=None, llm_questioner: BaseChatModel=None, black_box_scorers: Optional[List[str]] = None, response_template: str = "atomic", device: Any = None, system_prompt: str="You are a helpful assistant.", max_calls_per_min: int=1000, use_n_param: bool=False, num_factoids: int = 7, num_questions: int = 2, num_claim_qa_responses: int = 2):
+class ClaimQAScorer:
+    def __init__(
+        self,
+        llm: BaseChatModel,
+        llm_decomposer: BaseChatModel = None,
+        llm_questioner: BaseChatModel = None,
+        black_box_scorers: Optional[List[str]] = None,
+        response_template: str = "atomic",
+        device: Any = None,
+        system_prompt: str = "You are a helpful assistant.",
+        max_calls_per_min: int = 1000,
+        use_n_param: bool = False,
+        num_factoids: int = 7,
+        num_questions: int = 2,
+        num_claim_qa_responses: int = 2,
+    ):
         """
         Initialize the ClaimQAScorer.
 
@@ -80,12 +94,12 @@ class ClaimQAScorer():
         Parameters
         ----------
         responses : List[str]
-            A list of responses to be scored. 
+            A list of responses to be scored.
         progress_bar : Optional[Progress], default=None
             A progress bar to display the progress of the evaluation.
         """
         # Store responses if not already set
-        if not hasattr(self, 'responses'):
+        if not hasattr(self, "responses"):
             self.responses = responses
         if progress_bar:
             progress_task = progress_bar.add_task("  - Decomposing responses into factoids...", total=len(responses))
@@ -130,8 +144,8 @@ class ClaimQAScorer():
         claim_qa_scores = {key: [] for key in self.bb_object.scorers}
         print("Factoids for ith response: ", factoids)
         print(" ")
-        for factoid_i in factoids[:self.num_factoids]: # TODO: Appropriately implement self.num_factoids to generate the number of claims/factoids
-            #Generate questions on each factoid
+        for factoid_i in factoids[: self.num_factoids]:  # TODO: Appropriately implement self.num_factoids to generate the number of claims/factoids
+            # Generate questions on each factoid
             create_question_prompt = get_question_template(original_response, factoid_i, self.num_questions)
             print("Prompt: ", create_question_prompt)
             print(" ")
@@ -148,7 +162,7 @@ class ClaimQAScorer():
                     claim_qa_scores[key].append(np.nan)
                 continue
 
-            #Generate and score answers on each question
+            # Generate and score answers on each question
             bb_result = await self.bb_object.generate_and_score(prompts=final_questions, num_responses=self.num_claim_qa_responses, show_progress_bars=False)
             for key in claim_qa_scores:
                 claim_qa_scores[key].append(np.mean(bb_result.to_dict()["data"][key]))
@@ -156,7 +170,7 @@ class ClaimQAScorer():
 
     async def _generate_responses(self, llm, prompts: List[str], count: int = 1, progress_bar: Optional[Progress] = None) -> List[str]:
         """Helper function to generate responses with LLM.
-        
+
         Parameters
         ----------
         llm : BaseChatModel
@@ -185,9 +199,9 @@ class ClaimQAScorer():
 
     def _construct_result(self) -> Any:
         """Constructs UQResult object"""
-        prompts = getattr(self, 'prompts', [])
-        responses = getattr(self, 'responses', [])
-        factoid_scores = getattr(self, 'factoid_scores', [])
+        prompts = getattr(self, "prompts", [])
+        responses = getattr(self, "responses", [])
+        factoid_scores = getattr(self, "factoid_scores", [])
         data = {"prompts": prompts, "responses": responses, "factoid_scores": factoid_scores}
         result = {"data": data}
         return UQResult(result)
