@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import pytest
-import numpy as np
 from unittest.mock import Mock
 from uqlm.utils.nli import NLI, NLIResult
 
@@ -133,14 +132,14 @@ class TestNLIPredictHuggingFaceBinary:
     def test_predict_binary(self):
         """Test binary prediction with/without probabilities."""
         nli = NLI()
-        
+
         # With probabilities
         result = nli.predict(hypothesis="The sky is blue.", premise="The sky is blue.", style="binary", return_probabilities=True)
         assert isinstance(result, NLIResult)
         assert result.style == "binary"
         assert result.label is True
         assert 0 <= result.binary_probability <= 1
-        
+
         # Without probabilities
         result_no_prob = nli.predict(hypothesis="The sky is blue.", premise="The sky is blue.", style="binary", return_probabilities=False)
         assert result_no_prob.binary_probability is None
@@ -186,11 +185,7 @@ class TestNLIPredictLangChainTernary:
         for content, logprob in [("No", -0.1), ("No", -0.5), ("Yes", -0.1)]:
             mock_response = Mock()
             mock_response.content = content
-            mock_response.response_metadata = {
-                "logprobs": {
-                    "content": [{"token": content, "logprob": logprob}]
-                }
-            }
+            mock_response.response_metadata = {"logprobs": {"content": [{"token": content, "logprob": logprob}]}}
             mock_responses.append(mock_response)
 
         mock_llm.invoke.side_effect = mock_responses
@@ -221,20 +216,20 @@ class TestNLIPredictLangChainTernary:
     def test_predict_error_handling(self):
         """Test that errors and unclear responses are handled gracefully."""
         mock_llm = Mock()
-        
+
         # Test unclear response
         mock_response = Mock()
         mock_response.content = "I don't know"
         mock_llm.invoke.return_value = mock_response
-        
+
         nli = NLI(nli_llm=mock_llm)
         result = nli.predict(hypothesis="Test", premise="Test", style="ternary", return_probabilities=False)
         assert result.label == "neutral"
-        
+
         # Test exception handling
         mock_llm.invoke.side_effect = Exception("API Error")
         result = nli.predict(hypothesis="Test", premise="Test", style="ternary", return_probabilities=True)
-        assert result.ternary_probabilities == pytest.approx((1/3, 1/3, 1/3))
+        assert result.ternary_probabilities == pytest.approx((1 / 3, 1 / 3, 1 / 3))
 
 
 class TestNLIPredictLangChainBinary:
@@ -243,13 +238,11 @@ class TestNLIPredictLangChainBinary:
     def test_predict_binary(self):
         """Test binary prediction with LangChain."""
         mock_llm = Mock()
-        
+
         # Test with probabilities and logprobs
         mock_response = Mock()
         mock_response.content = "Yes"
-        mock_response.response_metadata = {
-            "logprobs": {"content": [{"token": "Yes", "logprob": -0.1}]}
-        }
+        mock_response.response_metadata = {"logprobs": {"content": [{"token": "Yes", "logprob": -0.1}]}}
         mock_llm.invoke.return_value = mock_response
 
         nli = NLI(nli_llm=mock_llm)
@@ -258,15 +251,13 @@ class TestNLIPredictLangChainBinary:
         assert isinstance(result, NLIResult)
         assert result.binary_label is True
         assert result.binary_probability != 1.0  # Uses logprob, not binary
-        
+
     def test_predict_binary_inverts_probability_for_no(self):
         """Test that No responses invert probability to represent entailment probability."""
         mock_llm = Mock()
         mock_response = Mock()
         mock_response.content = "No"
-        mock_response.response_metadata = {
-            "logprobs": {"content": [{"token": "No", "logprob": -0.1}]}
-        }
+        mock_response.response_metadata = {"logprobs": {"content": [{"token": "No", "logprob": -0.1}]}}
         mock_llm.invoke.return_value = mock_response
 
         nli = NLI(nli_llm=mock_llm)
@@ -290,7 +281,7 @@ class TestNLIEdgeCases:
     def test_logprobs_warning_shown_once(self):
         """Test that logprobs warning is only shown once."""
         import warnings as warnings_module
-        
+
         mock_llm = Mock()
         mock_response = Mock()
         mock_response.content = "Yes"
@@ -298,18 +289,16 @@ class TestNLIEdgeCases:
         mock_llm.invoke.return_value = mock_response
 
         nli = NLI(nli_llm=mock_llm)
-        
+
         # First call should show warning
         with pytest.warns(UserWarning, match="No logprobs found"):
             nli.predict("test", "test", style="binary", return_probabilities=True)
-        
+
         # Second call should not show warning
         with warnings_module.catch_warnings(record=True) as warning_list:
             warnings_module.simplefilter("always")
             nli.predict("test", "test", style="binary", return_probabilities=True)
             assert not any("No logprobs found" in str(w.message) for w in warning_list)
-
-
 
 
 @pytest.fixture
@@ -344,7 +333,7 @@ class TestNLIAsyncMethods:
         """Test async prediction with LangChain model."""
         nli = NLI(nli_llm=mock_async_llm)
         result = await nli.apredict("Test", "Test", return_probabilities=True)
-        
+
         assert isinstance(result, NLIResult)
         assert result.ternary_probabilities is not None
 
@@ -359,10 +348,9 @@ class TestNLIAsyncMethods:
         mock_llm.ainvoke = ainvoke_error
         nli = NLI(nli_llm=mock_llm)
         result = await nli.apredict("Test", "Test", return_probabilities=True)
-        
-        assert result.ternary_probabilities == pytest.approx((1/3, 1/3, 1/3))
+
+        assert result.ternary_probabilities == pytest.approx((1 / 3, 1 / 3, 1 / 3))
 
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

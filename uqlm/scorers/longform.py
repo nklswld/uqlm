@@ -18,6 +18,7 @@ MATCHED_UNIT_SCORERS = MATCHED_CLAIM_BLACKBOX_SCORERS + MATCHED_SENTENCE_BLACKBO
 DATACLASS_NAMES = ["claim_entail_scores", "claim_noncontradict_scores", "claim_constrast_entail_scores"]
 DATACLASS_TO_SCORER_MAP = {scorer: dataclass_name for scorer, dataclass_name in zip(UNIT_RESPONSE_SCORERS + MATCHED_UNIT_SCORERS, DATACLASS_NAMES * 4)}
 
+
 class LongFormUQ(UncertaintyQuantifier):
     def __init__(
         self,
@@ -196,7 +197,7 @@ class LongFormUQ(UncertaintyQuantifier):
         elif self.mode == "matched_unit":
             sampled_claim_sets = self.sampled_claim_sets if self.granularity == "claim" else self.sampled_sentence_sets
             score_results = self.matched_unit_scorer.evaluate(claim_sets=claim_sets, sampled_claim_sets=sampled_claim_sets, progress_bar=progress_bar).to_dict()
-            
+
         self.scores_dict = {k: [] for k in score_results}
         for scorer, scores in score_results.items():
             self.scores_dict[scorer] = self._aggregate_scores(scores)
@@ -262,8 +263,6 @@ class LongFormUQ(UncertaintyQuantifier):
                 Invalid mode: {self.mode}. Must be one of "unit_response", "matched_unit"
                 """
             )
-
-            
 
 
 # class LongFormUQ(UncertaintyQuantifier):

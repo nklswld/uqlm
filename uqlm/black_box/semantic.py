@@ -275,4 +275,3 @@ class SemanticScorer(SimilarityScorer):
             return sorted(responses, key=lambda x: (x != mode_str, x))
         else:
             return sorted(responses, key=len, reverse=True)
-
