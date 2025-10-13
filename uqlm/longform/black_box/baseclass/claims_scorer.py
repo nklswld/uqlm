@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Optional, Union
+from typing import Any, List, Tuple, Optional, Union
 from dataclasses import dataclass
 import numpy as np
 import time
@@ -24,7 +24,6 @@ class ClaimScores:
     """
     ClaimsScores is a dataclass that contains the aggregated score and the raw scores for each claim set.
     """
-
     def __init__(self, entailment_score_lists: List[np.ndarray] = None, noncontradict_score_lists: List[np.ndarray] = None, contrasted_entailment_score_lists: List[np.ndarray] = None, cosine_similarity_lists: List[np.ndarray] = None, bert_score_lists: List[np.ndarray] = None) -> None:
         self.entailment_score_lists = entailment_score_lists
         self.noncontradict_score_lists = noncontradict_score_lists
@@ -32,10 +31,28 @@ class ClaimScores:
         self.cosine_similarity_lists = cosine_similarity_lists
         self.bert_score_lists = bert_score_lists
 
-    def to_dict(self) -> dict:
+    def to_dict(self, return_all: bool = False) -> dict:
         """Return results in dictionary form"""
-        attributes = {"entailment": self.entailment_score_lists, "noncontradiction": self.noncontradict_score_lists, "contrasted_entailment": self.contrasted_entailment_score_lists, "cosine_sim": self.cosine_similarity_lists, "bert_score": self.bert_score_lists}
-        return {key: value for key, value in attributes.items() if value is not None}
+        claim_scores_dict = {"entailment": self.entailment_score_lists, "noncontradiction": self.noncontradict_score_lists, "contrasted_entailment": self.contrasted_entailment_score_lists, "cosine_sim": self.cosine_similarity_lists, "bert_score": self.bert_score_lists}
+        return {key: self._format_result(value, return_all) for key, value in claim_scores_dict.items() if value is not None}
+        
+    @staticmethod
+    def _format_result(score_arrays: List[np.ndarray], return_all: bool = False) -> List[Any]:
+        """Formats list of score arrays"""
+        if not score_arrays:
+            return None
+        elif return_all:
+            result = []
+            for array in score_arrays:
+                rows_as_lists = [row.tolist() for row in array]
+                result.append(rows_as_lists)
+            return result
+        else:
+            result = []
+            for array in score_arrays:
+                row_means = array.mean(axis=1).tolist()
+                result.append(row_means)
+        return result
 
 
 class ClaimScorer(ABC):
@@ -82,7 +99,7 @@ class ClaimScorer(ABC):
                     entail_scores[i, j], noncontradict_scores[i, j], contrast_entail_scores[i, j] = self._compute_matched_nli_scores(claim, candidate)
                 else:
                     entail_scores[i, j], noncontradict_scores[i, j], contrast_entail_scores[i, j] = self._get_nli_agreement_scores(claim, candidate)
-        return entail_scores.mean(axis=1), noncontradict_scores.mean(axis=1), contrast_entail_scores.mean(axis=1)
+        return entail_scores, noncontradict_scores, contrast_entail_scores
 
     def _compute_matched_nli_scores(self, claim: str, candidate_claims: List[str]) -> float:
         """Compute maximum matched-claim NLI score"""

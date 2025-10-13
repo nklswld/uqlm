@@ -103,7 +103,6 @@ class ResponseDecomposer:
             self.progress_task = progress_bar.add_task(" - Decomposing responses into claims...", total=len(responses))
         claim_sets = await self._decompose_claims(responses=responses, progress_bar=progress_bar)
         time.sleep(0.1)
-        print("Claim sets: ", claim_sets)
         return claim_sets
 
     async def decompose_candidate_claims(self, sampled_responses: List[List[str]], progress_bar: Optional[Progress] = None) -> List[List[List[str]]]:
