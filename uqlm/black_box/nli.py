@@ -331,18 +331,11 @@ class NLIScorer(SimilarityScorer):
         semantic_distance_expectation = np.array([nli_score[0, contradiction_index] + nli_score[0, neutral_index] * (np.sqrt(2) / 2) for nli_score in nli_scores])
         semantic_squared_distance_expectation = np.array([nli_score[0, contradiction_index] + nli_score[0, neutral_index] / 2 for nli_score in nli_scores])
 
-        print(semantic_squared_distance_expectation)
-
         # Evaluate the kernel function for each candidate response
         indicator = semantic_distance_expectation <= 1
         kernel_values = (1 - semantic_squared_distance_expectation) * indicator
 
-        print(kernel_values)
-
         # Calculate final semantic density score
         semantic_density = np.average(kernel_values, weights=tokenprob_response_probabilities)
-
-        print(semantic_density)
-        print(tokenprob_response_probabilities)
 
         return (semantic_density, nli_scores)
