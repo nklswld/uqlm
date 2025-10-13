@@ -12,20 +12,21 @@ from uqlm.utils.prompts.entailment_prompts import get_entailment_prompt
 class NLIResult(BaseModel):
     """
     Result from NLI prediction with probabilities.
-    
+
     This unified model supports both binary and ternary NLI styles.
     The structure adapts based on the `style` field.
     """
+
     style: Literal["binary", "ternary"] = Field(..., description="The NLI style used")
-    
+
     # Binary fields (populated when style="binary")
     binary_label: Optional[bool] = Field(None, description="True if entailed, False otherwise (binary style only)")
     binary_probability: Optional[float] = Field(None, ge=0.0, le=1.0, description="Probability of entailment (binary style only)")
-    
+
     # Ternary fields (populated when style="ternary")
     ternary_label: Optional[Literal["contradiction", "neutral", "entailment"]] = Field(None, description="Predicted NLI class (ternary style only)")
     ternary_probabilities: Optional[Tuple[float, float, float]] = Field(None, description="Probabilities for [contradiction, neutral, entailment] (ternary style only)")
-    
+
     @property
     def label(self) -> Union[bool, str]:
         """Get the label regardless of style."""
@@ -33,22 +34,23 @@ class NLIResult(BaseModel):
             return self.binary_label
         else:  # ternary
             return self.ternary_label
-    
+
     @property
-    def entailment_probability(self) -> float:
+    def entailment_probability(self) -> Optional[float]:
         """Get entailment probability regardless of style."""
-        if self.style == "binary":
+        if self.style == "binary" and self.binary_probability:
             return self.binary_probability
-        else:  # ternary
-            return self.ternary_probabilities[2] if self.ternary_probabilities else 0.0
-    
+        elif self.style == "ternary" and self.ternary_probabilities:
+            return self.ternary_probabilities[2]
+        return None
+
     @property
     def contradiction_probability(self) -> Optional[float]:
         """Get contradiction probability (ternary only)."""
         if self.style == "ternary" and self.ternary_probabilities:
             return self.ternary_probabilities[0]
         return None
-    
+
     @property
     def neutral_probability(self) -> Optional[float]:
         """Get neutral probability (ternary only)."""
@@ -99,6 +101,7 @@ class NLI:
             self.device = None
             self.tokenizer = None
             self.model = nli_llm
+            self._activate_logprobs()  # Attempt to activate logprobs
 
     def predict(self, hypothesis: str, premise: str, style: str = "ternary", return_probabilities: bool = True) -> Any:
         """
@@ -178,23 +181,15 @@ class NLI:
             entailment_idx = 2  # entailment is at index 2 in [contradiction, neutral, entailment]
             entailment_prob = float(probabilities[0][entailment_idx])
             label = predicted_class_idx == entailment_idx
-            
-            return NLIResult(
-                style="binary",
-                binary_label=bool(label),
-                binary_probability=entailment_prob if return_probabilities else None
-            )
+
+            return NLIResult(style="binary", binary_label=bool(label), binary_probability=entailment_prob if return_probabilities else None)
         else:
             # Ternary NLI
             predicted_class_idx = probabilities.argmax(axis=1)[0]
             label = self.label_mapping[predicted_class_idx]
             probs_tuple = tuple(float(p) for p in probabilities[0]) if return_probabilities else None
-            
-            return NLIResult(
-                style="ternary",
-                ternary_label=label,
-                ternary_probabilities=probs_tuple
-            )
+
+            return NLIResult(style="ternary", ternary_label=label, ternary_probabilities=probs_tuple)
 
     def _predict_langchain(self, hypothesis: str, premise: str, style: str = "ternary", return_probabilities: bool = True) -> Any:
         """
@@ -225,15 +220,12 @@ class NLI:
         if style == "binary":
             # Binary NLI: Ask if premise entails hypothesis
             prompt = get_entailment_prompt(claim=hypothesis, source_text=premise, style="binary")
-            messages = [
-                SystemMessage("You are a helpful assistant that evaluates natural language inference relationships."),
-                HumanMessage(prompt)
-            ]
+            messages = [SystemMessage("You are a helpful assistant that evaluates natural language inference relationships."), HumanMessage(prompt)]
 
             try:
                 response = self.model.invoke(messages)
                 response_text = response.content.strip().lower()
-                
+
                 # Determine label from literal text response
                 parsed = self._parse_response(response_text, ["yes", "no"])
                 label = (parsed == "yes") if parsed is not None else False  # Default to False if unclear
@@ -244,20 +236,12 @@ class NLI:
                     prob = self._extract_yes_probability_from_response(response, response_text)
                 else:
                     prob = None
-                
-                return NLIResult(
-                    style="binary",
-                    binary_label=label,
-                    binary_probability=prob
-                )
+
+                return NLIResult(style="binary", binary_label=label, binary_probability=prob)
             except Exception as e:
                 warnings.warn(f"Error during binary LangChain NLI inference: {e}. Defaulting to False.")
-                return NLIResult(
-                    style="binary",
-                    binary_label=False,
-                    binary_probability=0.5 if return_probabilities else None
-                )
-        
+                return NLIResult(style="binary", binary_label=False, binary_probability=0.5 if return_probabilities else None)
+
         # Ternary style logic
         if return_probabilities:
             # Query the LLM for each class to get probability estimates
@@ -278,11 +262,7 @@ class NLI:
                     probabilities.append(prob)
                 except Exception as e:
                     warnings.warn(f"Error during LangChain NLI inference: {e}. Assigning uniform probabilities.")
-                    return NLIResult(
-                        style="ternary",
-                        ternary_label="neutral",
-                        ternary_probabilities=(1/3, 1/3, 1/3)
-                    )
+                    return NLIResult(style="ternary", ternary_label="neutral", ternary_probabilities=(1 / 3, 1 / 3, 1 / 3))
 
             # Normalize probabilities
             probabilities = np.array(probabilities)
@@ -296,11 +276,7 @@ class NLI:
             predicted_label = self.label_mapping[predicted_idx]
             probs_tuple = tuple(float(p) for p in probabilities)
 
-            return NLIResult(
-                style="ternary",
-                ternary_label=predicted_label,
-                ternary_probabilities=probs_tuple
-            )
+            return NLIResult(style="ternary", ternary_label=predicted_label, ternary_probabilities=probs_tuple)
 
         else:
             # Single query to determine the class (when return_probabilities=False)
@@ -318,61 +294,57 @@ class NLI:
                 label = parsed if parsed is not None else "neutral"
                 if parsed is None:
                     warnings.warn(f"Unclear NLI response from LangChain model: '{response_text}'. Defaulting to 'neutral'.")
-                
+
                 return NLIResult(
                     style="ternary",
                     ternary_label=label,
-                    ternary_probabilities=None  # No probabilities when return_probabilities=False
+                    ternary_probabilities=None,  # No probabilities when return_probabilities=False
                 )
             except Exception as e:
                 warnings.warn(f"Error during LangChain NLI inference: {e}. Defaulting to 'neutral'.")
-                return NLIResult(
-                    style="ternary",
-                    ternary_label="neutral",
-                    ternary_probabilities=None
-                )
+                return NLIResult(style="ternary", ternary_label="neutral", ternary_probabilities=None)
 
     def _parse_response(self, response_text: str, expected_values: list) -> Any:
         """
         Parse LLM response to extract one of the expected values.
-        
+
         Strategy:
         1. Check if response starts with expected value (most reliable)
         2. Check if first word matches expected value
         3. Fallback to full text search (least reliable)
-        
+
         Parameters
         ----------
         response_text : str
             The response text from the LLM (should already be lowercased and stripped)
         expected_values : list
             List of possible values to look for (e.g., ["yes", "no"] or ["entailment", "contradiction", "neutral"])
-            
+
         Returns
         -------
         Any
             The matched value from expected_values, or None if no match found
         """
         # Get first word (strip punctuation)
-        first_word = response_text.split()[0].strip('.,!?;:') if response_text else ""
-        
+        first_word = response_text.split()[0].strip(".,!?;:") if response_text else ""
+
         # Try each expected value
         for value in expected_values:
             value_lower = value.lower()
-            
+
             # Best: response starts with the value
             if response_text.startswith(value_lower):
                 return value
-            
+
             # Good: first word is the value
             if first_word == value_lower:
                 return value
-        
+
         # Fallback: substring search (least reliable, but better than nothing)
         for value in expected_values:
             if value.lower() in response_text:
                 return value
-        
+
         # No match found
         return None
 
@@ -443,14 +415,9 @@ class NLI:
         # Fallback: binary classification based on text
         # Warn user once if logprobs are not available
         if not self._logprobs_warning_shown and not self.is_hf_model:
-            warnings.warn(
-                "No logprobs found in LLM response. Probability estimates will be based on "
-                "response text only (1.0 for 'Yes', 0.0 for 'No', 0.5 for unclear). "
-                "For better probability estimates, configure your LLM to return logprobs.",
-                UserWarning
-            )
+            warnings.warn("No logprobs found in LLM response. Probability estimates will be based on response text only (1.0 for 'Yes', 0.0 for 'No', 0.5 for unclear). Ensure your LLM supports logprobs, or set return_probabilities=False if it does not.", UserWarning)
             self._logprobs_warning_shown = True
-        
+
         # Use robust parsing to determine response
         parsed = self._parse_response(response_text, ["yes", "no"])
         if parsed == "yes":
@@ -530,15 +497,12 @@ class NLI:
         if style == "binary":
             # Binary NLI: Ask if premise entails hypothesis
             prompt = get_entailment_prompt(claim=hypothesis, source_text=premise, style="binary")
-            messages = [
-                SystemMessage("You are a helpful assistant that evaluates natural language inference relationships."),
-                HumanMessage(prompt)
-            ]
+            messages = [SystemMessage("You are a helpful assistant that evaluates natural language inference relationships."), HumanMessage(prompt)]
 
             try:
                 response = await self.model.ainvoke(messages)
                 response_text = response.content.strip().lower()
-                
+
                 # Determine label from literal text response
                 parsed = self._parse_response(response_text, ["yes", "no"])
                 label = (parsed == "yes") if parsed is not None else False  # Default to False if unclear
@@ -549,20 +513,12 @@ class NLI:
                     prob = self._extract_yes_probability_from_response(response, response_text)
                 else:
                     prob = None
-                
-                return NLIResult(
-                    style="binary",
-                    binary_label=label,
-                    binary_probability=prob
-                )
+
+                return NLIResult(style="binary", binary_label=label, binary_probability=prob)
             except Exception as e:
                 warnings.warn(f"Error during async binary LangChain NLI inference: {e}. Defaulting to False.")
-                return NLIResult(
-                    style="binary",
-                    binary_label=False,
-                    binary_probability=0.5 if return_probabilities else None
-                )
-        
+                return NLIResult(style="binary", binary_label=False, binary_probability=0.5 if return_probabilities else None)
+
         if return_probabilities:
             # Query the LLM for each class concurrently to get probability estimates
             async def query_style(style: str) -> float:
@@ -586,11 +542,7 @@ class NLI:
                 # Check if any queries failed
                 if None in prob_results:
                     warnings.warn("One or more async NLI queries failed. Assigning uniform probabilities.")
-                    return NLIResult(
-                        style="ternary",
-                        ternary_label="neutral",
-                        ternary_probabilities=(1/3, 1/3, 1/3)
-                    )
+                    return NLIResult(style="ternary", ternary_label="neutral", ternary_probabilities=(1 / 3, 1 / 3, 1 / 3))
 
                 probabilities = np.array(prob_results)
 
@@ -605,19 +557,11 @@ class NLI:
                 predicted_label = self.label_mapping[predicted_idx]
                 probs_tuple = tuple(float(p) for p in probabilities)
 
-                return NLIResult(
-                    style="ternary",
-                    ternary_label=predicted_label,
-                    ternary_probabilities=probs_tuple
-                )
+                return NLIResult(style="ternary", ternary_label=predicted_label, ternary_probabilities=probs_tuple)
 
             except Exception as e:
                 warnings.warn(f"Error during async LangChain NLI inference: {e}. Assigning uniform probabilities.")
-                return NLIResult(
-                    style="ternary",
-                    ternary_label="neutral",
-                    ternary_probabilities=(1/3, 1/3, 1/3)
-                )
+                return NLIResult(style="ternary", ternary_label="neutral", ternary_probabilities=(1 / 3, 1 / 3, 1 / 3))
 
         else:
             # Single query to determine the class (when return_probabilities=False)
@@ -633,16 +577,24 @@ class NLI:
                 label = parsed if parsed is not None else "neutral"
                 if parsed is None:
                     warnings.warn(f"Unclear NLI response from async LangChain model: '{response_text}'. Defaulting to 'neutral'.")
-                
+
                 return NLIResult(
                     style="ternary",
                     ternary_label=label,
-                    ternary_probabilities=None  # No probabilities when return_probabilities=False
+                    ternary_probabilities=None,  # No probabilities when return_probabilities=False
                 )
             except Exception as e:
                 warnings.warn(f"Error during async LangChain NLI inference: {e}. Defaulting to 'neutral'.")
-                return NLIResult(
-                    style="ternary",
-                    ternary_label="neutral",
-                    ternary_probabilities=None
-                )
+                return NLIResult(style="ternary", ternary_label="neutral", ternary_probabilities=None)
+
+    def _activate_logprobs(self) -> None:
+        """
+        Attempt to activate logprobs for the LLM.
+        """
+        if self.is_hf_model:
+            warnings.warn("Logprobs are not supported for HuggingFace models. Please use a LangChain model instead.")
+            return
+        if hasattr(self.model, "logprobs"):
+            self.model.logprobs = True
+        else:
+            warnings.warn("Logprobs are not supported for this model. Please use a model that supports logprobs.")
