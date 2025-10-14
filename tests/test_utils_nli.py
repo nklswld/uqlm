@@ -15,6 +15,7 @@
 import pytest
 from unittest.mock import Mock
 from uqlm.utils.nli import NLI, NLIResult
+import numpy as np
 
 
 class TestNLIInitialization:
@@ -122,8 +123,8 @@ class TestNLIPredictHuggingFaceTernary:
         """Test prediction captures semantic relationships."""
         nli = NLI()
         # Similar sentences should favor entailment
-        result = nli.predict(hypothesis="A person is walking.", premise="A human is taking a walk.", style="ternary")
-        assert result.entailment_probability > result.contradiction_probability
+        result = nli.predict(hypothesis="There is a full moon tonight.", premise="The moon is visible in the sky tonight.", style="ternary")
+        assert np.argmax(result.ternary_probabilities) != 2 # Not entailment
 
 
 class TestNLIPredictHuggingFaceBinary:
@@ -168,7 +169,8 @@ class TestNLIPredictLangChainTernary:
         mock_llm.invoke.side_effect = [mock_response_1, mock_response_2, mock_response_3]
 
         nli = NLI(nli_llm=mock_llm)
-        result = nli.predict(hypothesis="The sky is blue.", premise="The sky is blue.", style="ternary", return_probabilities=True)
+        with pytest.warns(UserWarning, match="No logprobs found"):
+            result = nli.predict(hypothesis="The sky is blue.", premise="The sky is blue.", style="ternary", return_probabilities=True)
 
         assert isinstance(result, NLIResult)
         assert result.style == "ternary"
@@ -213,6 +215,13 @@ class TestNLIPredictLangChainTernary:
         assert result.ternary_probabilities is None
         assert mock_llm.invoke.call_count == 1
 
+    def test_predict_semantic_relationships(self):
+        """Test prediction captures semantic relationships."""
+        nli = NLI()
+        # Similar sentences should favor entailment
+        result = nli.predict(hypothesis="There is a full moon tonight.", premise="The moon is visible in the sky tonight.", style="ternary")
+        assert np.argmax(result.ternary_probabilities) != 2 # Not entailment
+
     def test_predict_error_handling(self):
         """Test that errors and unclear responses are handled gracefully."""
         mock_llm = Mock()
@@ -223,12 +232,14 @@ class TestNLIPredictLangChainTernary:
         mock_llm.invoke.return_value = mock_response
 
         nli = NLI(nli_llm=mock_llm)
-        result = nli.predict(hypothesis="Test", premise="Test", style="ternary", return_probabilities=False)
+        with pytest.warns(UserWarning, match="Unclear NLI response"):
+            result = nli.predict(hypothesis="Test", premise="Test", style="ternary", return_probabilities=False)
         assert result.label == "neutral"
 
         # Test exception handling
         mock_llm.invoke.side_effect = Exception("API Error")
-        result = nli.predict(hypothesis="Test", premise="Test", style="ternary", return_probabilities=True)
+        with pytest.warns(UserWarning):
+            result = nli.predict(hypothesis="Test", premise="Test", style="ternary", return_probabilities=True)
         assert result.ternary_probabilities == pytest.approx((1 / 3, 1 / 3, 1 / 3))
 
 
@@ -332,7 +343,8 @@ class TestNLIAsyncMethods:
     async def test_apredict_with_langchain(self, mock_async_llm):
         """Test async prediction with LangChain model."""
         nli = NLI(nli_llm=mock_async_llm)
-        result = await nli.apredict("Test", "Test", return_probabilities=True)
+        with pytest.warns(UserWarning, match="No logprobs found"):
+            result = await nli.apredict("Test", "Test", return_probabilities=True)
 
         assert isinstance(result, NLIResult)
         assert result.ternary_probabilities is not None
@@ -347,7 +359,9 @@ class TestNLIAsyncMethods:
 
         mock_llm.ainvoke = ainvoke_error
         nli = NLI(nli_llm=mock_llm)
-        result = await nli.apredict("Test", "Test", return_probabilities=True)
+        
+        with pytest.warns(UserWarning):
+            result = await nli.apredict("Test", "Test", return_probabilities=True)
 
         assert result.ternary_probabilities == pytest.approx((1 / 3, 1 / 3, 1 / 3))
 

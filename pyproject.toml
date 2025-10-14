@@ -69,6 +69,10 @@ pre-commit = "^4.1.0"
 ipykernel = "^6.29.5"
 langchain-openai = "^0.3.30"
 langchain-google-vertexai = "^2.0.28"
+pytest = "^8.3.5"
+pytest-asyncio = ">=0.25.3,<1.2.0"
+pytest-cov = "^6.0.0"
+pytest-rerunfailures = "^16.0"
 
 [tool.poetry.group.docs]
 optional = true
@@ -81,19 +85,6 @@ sphinx-autodoc-typehints = "2.2.0"
 sphinx-gallery = "0.18.0"
 sphinx-favicon = "1.0.1"
 nbsphinx = "0.9.6"
-
-
-[tool.poetry.group.test]
-optional = true
-
-[tool.poetry.group.test.dependencies]
-ipykernel = "^6.29.5"
-langchain-openai = "^0.3.6"
-pytest = "^8.3.5"
-langchain-google-vertexai = "^2.0.14"
-pytest-asyncio = ">=0.25.3,<1.2.0"
-pytest-cov = "^6.0.0"
-pytest-rerunfailures = "^16.0"
 
 
 
