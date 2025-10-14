@@ -32,11 +32,11 @@ def get_entailment_prompt(claim: str, source_text: str, style: str) -> str:
 
     entailment_prompt = None
 
-    if style == "graphuq":
+    if style == "binary": # this is modified version ofthe "edge construction prompt" from https://arxiv.org/pdf/2410.20783
         entailment_prompt = f"""
         Context: {source_text}
         Claim: {claim}
-        Is the claim supported by the context above?
+        Is the claim entailed by the context above?
         Answer Yes or No:
         """
 

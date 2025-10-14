@@ -101,7 +101,7 @@ class SemanticEntropy(UncertaintyQuantifier):
         self.sampling_temperature = sampling_temperature
         self.best_response_selection = best_response_selection
         self.return_responses = return_responses
-        self._setup_nli(nli_model_name)
+        self._setup_semantic_scorer(nli_model_name)
         self.prompts = None
         self.logprobs = None
         self.multiple_logprobs = None
@@ -129,7 +129,7 @@ class SemanticEntropy(UncertaintyQuantifier):
         """
         self.prompts = prompts
         self.num_responses = num_responses
-        self.nli_scorer.num_responses = num_responses
+        self.semantic_scorer.num_responses = num_responses
 
         if hasattr(self.llm, "logprobs"):
             self.llm.logprobs = True
@@ -167,7 +167,7 @@ class SemanticEntropy(UncertaintyQuantifier):
         self.responses = responses
         self.sampled_responses = sampled_responses
         self.num_responses = len(self.sampled_responses[0])
-        self.nli_scorer.num_responses = self.num_responses
+        self.semantic_scorer.num_responses = self.num_responses
 
         n_prompts = len(self.responses)
         discrete_semantic_entropy = [None] * n_prompts
@@ -177,7 +177,7 @@ class SemanticEntropy(UncertaintyQuantifier):
         def _process_i(i):
             candidates = [self.responses[i]] + self.sampled_responses[i]
             candidate_logprobs = [self.logprobs[i]] + self.multiple_logprobs[i] if (self.logprobs and self.multiple_logprobs) else None
-            tmp = self.nli_scorer._semantic_entropy_process(candidates=candidates, i=i, logprobs_results=candidate_logprobs, best_response_selection=self.best_response_selection)
+            tmp = self.semantic_scorer._semantic_entropy_process(candidates=candidates, i=i, logprobs_results=candidate_logprobs, best_response_selection=self.best_response_selection)
             best_responses[i], discrete_semantic_entropy[i], _, tokenprob_semantic_entropy[i] = tmp
 
         self._construct_progress_bar(show_progress_bars)
@@ -190,7 +190,7 @@ class SemanticEntropy(UncertaintyQuantifier):
             if self.progress_bar:
                 self.progress_bar.update(progress_task, advance=1)
         time.sleep(0.1)
-        confidence_scores = [1 - ne for ne in self.nli_scorer._normalize_entropy(discrete_semantic_entropy)]
+        confidence_scores = [1 - ne for ne in self.semantic_scorer._normalize_entropy(discrete_semantic_entropy)]
 
         if self.use_best:
             self._update_best(best_responses, include_logprobs=self.llm.logprobs)
@@ -200,7 +200,7 @@ class SemanticEntropy(UncertaintyQuantifier):
         data_to_return["discrete_confidence_scores"] = confidence_scores
         if tokenprob_semantic_entropy[0] is not None:
             data_to_return["tokenprob_entropy_values"] = tokenprob_semantic_entropy
-            data_to_return["tokenprob_confidence_scores"] = [1 - ne for ne in self.nli_scorer._normalize_entropy(tokenprob_semantic_entropy)]
+            data_to_return["tokenprob_confidence_scores"] = [1 - ne for ne in self.semantic_scorer._normalize_entropy(tokenprob_semantic_entropy)]
 
         result = {"data": data_to_return, "metadata": {"parameters": {"temperature": None if not self.llm else self.llm.temperature, "sampling_temperature": None if not self.sampling_temperature else self.sampling_temperature, "num_responses": self.num_responses}}}
 

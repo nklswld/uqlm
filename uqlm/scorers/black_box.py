@@ -116,7 +116,7 @@ class BlackBoxUQ(UncertaintyQuantifier):
         self._validate_scorers(scorers)
         self.use_nli = ("semantic_negentropy" in self.scorers) or ("noncontradiction" in self.scorers)
         if self.use_nli:
-            self._setup_nli(nli_model_name)
+            self._setup_semantic_scorer(nli_model_name)
 
     async def generate_and_score(self, prompts: List[Union[str, List[BaseMessage]]], num_responses: int = 5, show_progress_bars: Optional[bool] = True) -> UQResult:
         """
@@ -182,14 +182,14 @@ class BlackBoxUQ(UncertaintyQuantifier):
 
         if self.use_nli:
             compute_entropy = "semantic_negentropy" in self.scorers
-            nli_scores = self.nli_scorer.evaluate(responses=self.responses, sampled_responses=self.sampled_responses, use_best=self.use_best, compute_entropy=compute_entropy, progress_bar=self.progress_bar)
+            nli_scores = self.semantic_scorer.evaluate(responses=self.responses, sampled_responses=self.sampled_responses, use_best=self.use_best, compute_entropy=compute_entropy, progress_bar=self.progress_bar)
             if self.use_best:
                 self._update_best(nli_scores["responses"], include_logprobs=False)
 
             for key in ["semantic_negentropy", "noncontradiction"]:
                 if key in self.scorers:
                     if key == "semantic_negentropy":
-                        nli_scores[key] = [1 - s for s in self.nli_scorer._normalize_entropy(nli_scores["discrete_semantic_entropy"])]  # Convert to confidence score
+                        nli_scores[key] = [1 - s for s in self.semantic_scorer._normalize_entropy(nli_scores["discrete_semantic_entropy"])]  # Convert to confidence score
                     self.scores_dict[key] = nli_scores[key]
 
         # similarity scorers that follow the same pattern
