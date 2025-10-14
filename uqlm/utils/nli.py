@@ -165,7 +165,7 @@ class NLI:
         if len(hypothesis) > self.max_length or len(premise) > self.max_length:
             warnings.warn("Maximum response length exceeded for NLI comparison. Truncation will occur. To adjust, change the value of max_length")
 
-        concat = hypothesis[0 : self.max_length] + " [SEP] " + premise[0 : self.max_length]
+        concat = premise[0 : self.max_length] + " [SEP] " + hypothesis[0 : self.max_length]
         encoded_inputs = self.tokenizer(concat, padding=True, return_tensors="pt")
 
         if self.device:
