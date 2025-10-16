@@ -60,7 +60,7 @@ class FactScoreGrader:
             new_inner_list = flat_grades_list[flat_index : flat_index + inner_length]
             new_inner_list_bool = [self._str_to_bool(r) for r in new_inner_list]
             formatted_grades.append(new_inner_list_bool)
-        flat_index += inner_length
+            flat_index += inner_length
         return formatted_grades
 
     async def grade_claims(self, claim_sets: List[List[str]], answers: List[str], progress_bar: Optional[Progress] = None) -> List[List[bool]]:
