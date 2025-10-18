@@ -144,7 +144,13 @@ dmypy.json
 # for dev
 /experiments
 
+# Ergebnisse & Caches
 results/
+*.xlsx
+*.csv~
+*.tmp
+**/.ipynb_checkpoints
 
+# VS Code settings
 .vscode/
 .settings/
