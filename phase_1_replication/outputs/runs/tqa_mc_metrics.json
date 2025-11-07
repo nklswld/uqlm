@@ -1,0 +1,12 @@
+{
+  "n_total_available": 817,
+  "n_used": 300,
+  "seed": 42,
+  "acc": 0.4766666666666667,
+  "auroc_logit_raw": 0.6642243107211259,
+  "auroc_hidden_raw": 0.5146318649503362,
+  "auroc_hidden_probe": 0.9967039330096655,
+  "ece_hidden_probe_10": 0.026346907604629082,
+  "auroc_attn_raw": 0.587702106810387,
+  "ece_attn_10": 0.12711626273278537
+}
